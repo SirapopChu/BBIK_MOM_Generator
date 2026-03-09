@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Backend Node.js dependencies
+Backend/node_modules/
+Backend/package.json
+Backend/package-lock.json
