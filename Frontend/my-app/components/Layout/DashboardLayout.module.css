@@ -1,0 +1,65 @@
+.layout {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    background-color: #f7f8f9;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    position: relative;
+}
+
+.mainContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    width: 100%;
+}
+
+.contentScroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 30px;
+    background-color: #ffffff;
+}
+
+.footer {
+    padding: 20px 30px;
+    font-size: 11px;
+    color: #888888;
+    border-top: 1px solid #e9ecef;
+    background-color: #ffffff;
+    text-align: center;
+}
+
+.mobileOverlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+}
+
+@media (max-width: 1024px) {
+    .contentScroll {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .contentScroll {
+        padding: 15px;
+    }
+
+    .footer {
+        padding: 15px;
+        font-size: 10px;
+    }
+
+    .mobileOverlay {
+        display: block;
+    }
+}
