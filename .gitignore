@@ -210,4 +210,12 @@ __marimo__/
 Backend/node_modules/
 Backend/package.json
 Backend/package-lock.json
+
+
+# Frontend Node.js dependencies
+Frontend/node_modules/
+Frontend/package.json
+Frontend/package-lock.json
 Frontend/.DS_Store
+
+

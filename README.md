@@ -15,7 +15,15 @@
 
 ### install Frrontend
 
-    1. cd Frontend
+    1.  cd Frontend
 
     2.  npx create-next-app@latest --typescript --tailwind --eslint
+
+    3.  npm install --save-dev hygen
+
+    Create components 
+
+    npx generate-react-cli component Namecomponents
+
+
 
