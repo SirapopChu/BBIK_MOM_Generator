@@ -1,13 +1,17 @@
+"use client";
+
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import styles from './LandingContent.module.css';
 
 const LandingContent = () => {
+    const router = useRouter();
     return (
         <div className={styles.container}>
             <h1 className={styles.welcomeText}>Welcome back, Tipakorn!</h1>
 
             <div className={styles.topCards}>
-                <div className={`${styles.actionCard} ${styles.primaryCard}`}>
+                <div className={`${styles.actionCard} ${styles.primaryCard}`} onClick={() => router.push('/dashboard/new-meeting')} style={{cursor: 'pointer'}}>
                     <div className={styles.cardIcon}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
                     </div>
