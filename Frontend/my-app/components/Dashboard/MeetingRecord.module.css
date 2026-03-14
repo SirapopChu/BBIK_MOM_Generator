@@ -89,9 +89,15 @@
 .card {
     background-color: white;
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 1.5rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .cardHeader {
@@ -127,14 +133,24 @@
 }
 
 .recordingArea {
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 16px;
     padding: 3rem 1rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    background-color: #f8fafc;
-    margin-bottom: 1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.recordingArea::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at center, rgba(99, 102, 241, 0.05) 0%, transparent 70%);
+    pointer-events: none;
 }
 
 .instructionText {
@@ -169,23 +185,30 @@
 }
 
 .micButton {
-    width: 64px;
-    height: 64px;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
-    background-color: #6366f1;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
     color: white;
     border: none;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
-    transition: transform 0.2s, background-color 0.2s;
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.5);
+    animation: pulseMic 2.5s infinite;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 10;
+}
+
+@keyframes pulseMic {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.6); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(99, 102, 241, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
 }
 
 .micButton:hover {
-    background-color: #4f46e5;
-    transform: scale(1.05);
+    transform: scale(1.1);
 }
 
 .recordInfo {
@@ -257,21 +280,42 @@
 
 .uploadArea {
     border: 2px dashed #cbd5e1;
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 3rem 2rem;
     text-align: center;
-    background-color: #f8fafc;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
     cursor: pointer;
-    transition: border-color 0.2s;
+    transition: all 0.3s ease;
     height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.uploadArea::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s ease, height 0.4s ease;
+    border-radius: 50%;
+    pointer-events: none;
 }
 
 .uploadArea:hover {
     border-color: #6366f1;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.1);
+}
+
+.uploadArea:hover::before {
+    width: 200%;
+    height: 200%;
 }
 
 .uploadIcon {
@@ -305,12 +349,12 @@
 .recordingMode {
     display: flex;
     flex-direction: column;
-    background-color: #0f172a;
-    border-radius: 12px;
-    border: 1px solid #1e293b;
-    overflow: hidden;
+    background-color: #f8fafc;
     font-family: 'Inter', -apple-system, sans-serif;
-    color: #f8fafc;
+    color: #0f172a;
+    position: relative;
+    min-height: 100vh;
+    margin: -2rem;
 }
 
 .recordingTopBar {
@@ -318,8 +362,9 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem 2rem;
-    background-color: #1e293b;
-    border-bottom: 1px solid #334155;
+    background-color: transparent;
+    border-bottom: 1px solid #e2e8f0;
+    z-index: 10;
 }
 
 .recordingTopLeft {
@@ -332,40 +377,39 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background-color: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
-    padding: 0.25rem 0.75rem;
+    background-color: #fef2f2;
+    color: #ef4444;
+    padding: 0.375rem 0.875rem;
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.05em;
-    border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .liveDot {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     background-color: #ef4444;
     border-radius: 50%;
     animation: pulseRecording 1.5s infinite;
 }
 
 @keyframes pulseRecording {
-    0% { opacity: 1; }
-    50% { opacity: 0.3; }
-    100% { opacity: 1; }
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
 }
 
 .topDivider {
-    width: 1px;
+    width: 2px;
     height: 20px;
-    background-color: #475569;
+    background-color: #cbd5e1;
 }
 
 .topTitle {
     font-size: 1rem;
-    font-weight: 600;
-    color: #f8fafc;
+    font-weight: 700;
+    color: #0f172a;
 }
 
 .recordingTopRight {
@@ -381,7 +425,7 @@
 .topUserName {
     font-size: 0.875rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .topUserRole {
@@ -402,21 +446,44 @@
     font-size: 0.875rem;
 }
 
+@media (max-width: 768px) {
+    .recordingTopBar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1rem;
+    }
+    .recordingTopRight {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .topUserInfo {
+        text-align: left;
+    }
+}
+
 .recordingMainContent {
     flex: 1;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    padding-bottom: 2rem;
 }
 
 .recordingMainGrid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 2rem;
-    padding: 2rem;
+    padding: 1rem;
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
+}
+
+@media (min-width: 768px) {
+    .recordingMainGrid {
+        padding: 2rem;
+    }
 }
 
 @media (min-width: 1024px) {
@@ -426,15 +493,15 @@
 }
 
 .timerCardPro {
-    background: #1e293b;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    padding: 3rem;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 25px -5px rgba(0, 0, 0, 0.05);
+    padding: 3.5rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    border: 1px solid #334155;
+    border: 1px solid #e2e8f0;
 }
 
 .timerProText {
@@ -454,17 +521,26 @@
     margin-bottom: 2rem;
 }
 
+@media (max-width: 768px) {
+    .timerCardPro {
+        padding: 2rem 1rem;
+    }
+    .timerProText {
+        font-size: 3rem;
+    }
+}
+
 .waveBox {
     width: 100%;
-    max-width: 500px;
-    height: 80px;
-    border: 1px dashed #475569;
+    max-width: 600px;
+    height: 100px;
+    border: 1px dashed #e2e8f0;
     border-radius: 12px;
-    background-color: transparent;
+    background-color: #f8fafc;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 6px;
     margin-bottom: 2rem;
     padding: 0 1rem;
     box-sizing: border-box;
@@ -489,6 +565,17 @@
     display: flex;
     align-items: center;
     gap: 3rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+@media (max-width: 480px) {
+    .timerStats {
+        gap: 1.5rem;
+    }
+    .statDivider:nth-child(4) {
+        display: none;
+    }
 }
 
 .statGroup {
@@ -498,13 +585,13 @@
 .statVal {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .statlbl {
     font-size: 0.625rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: #64748b;
     letter-spacing: 0.05em;
     margin-top: 0.25rem;
 }
@@ -512,7 +599,7 @@
 .statDivider {
     width: 1px;
     height: 24px;
-    background-color: #334155;
+    background-color: #e2e8f0;
 }
 
 .liveTranscriptionPro {
@@ -530,7 +617,7 @@
 .transcriptionProTitle {
     font-size: 0.75rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: #475569;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -540,20 +627,20 @@
 .confidenceBadgePro {
     font-size: 0.75rem;
     font-weight: 600;
-    color: #f8fafc;
-    background: #0f172a;
+    color: #0f172a;
+    background: white;
     padding: 0.25rem 0.75rem;
     border-radius: 999px;
-    border: 1px solid #334155;
+    border: 1px solid #e2e8f0;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .transcriptMsgPro {
-    background: #0f172a;
+    background: #f8fafc;
     border-radius: 12px;
     padding: 1.25rem;
     margin-bottom: 1rem;
-    border: 1px solid #334155;
+    border: 1px solid #f1f5f9;
 }
 
 .speakerHeaderPro {
@@ -569,14 +656,14 @@
     gap: 0.5rem;
     font-weight: 700;
     font-size: 0.875rem;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .speakerAvatarPro {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background-color: #334155;
+    background-color: #e2e8f0;
     background-size: cover;
     background-position: center;
 }
@@ -588,7 +675,7 @@
 
 .msgBubble {
     font-size: 0.875rem;
-    color: #cbd5e1;
+    color: #334155;
     line-height: 1.6;
 }
 
@@ -607,11 +694,11 @@
 }
 
 .healthPanelPro {
-    background: #1e293b;
-    border-radius: 12px;
+    background: white;
+    border-radius: 16px;
     padding: 1.5rem;
-    border: 1px solid #334155;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .healthLevel {
@@ -635,7 +722,7 @@
 .healthSegment {
     height: 8px;
     flex: 1;
-    background-color: #334155;
+    background-color: #e2e8f0;
     border-radius: 1px;
 }
 
@@ -643,8 +730,8 @@
 .segmentYellow { background-color: #eab308; }
 
 .healthInfoBox {
-    background-color: rgba(30, 58, 138, 0.3);
-    border: 1px solid #1e3a8a;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
     border-radius: 8px;
     padding: 1rem;
     margin-top: 1.5rem;
@@ -655,13 +742,13 @@
 .healthInfoTitle {
     font-size: 0.75rem;
     font-weight: 600;
-    color: #60a5fa;
+    color: #1e3a8a;
     margin-bottom: 0.25rem;
 }
 
 .healthInfoDesc {
     font-size: 0.75rem;
-    color: #93c5fd;
+    color: #334155;
     line-height: 1.4;
 }
 
@@ -721,10 +808,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 2rem;
-    background-color: #1e293b;
-    border-top: 1px solid #334155;
-    z-index: 10;
+    padding: 1.25rem 2rem;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    z-index: 50;
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
 }
 
 .footerDevice {
@@ -738,8 +828,8 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background-color: #0f172a;
-    border: 1px solid #334155;
+    background-color: white;
+    border: 1px solid #e2e8f0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -753,7 +843,7 @@
 .footerDeviceL {
     font-size: 0.625rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: #64748b;
     letter-spacing: 0.05em;
     margin-bottom: 2px;
 }
@@ -761,7 +851,7 @@
 .footerDeviceV {
     font-size: 0.875rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .footerControls {
@@ -776,17 +866,19 @@
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background-color: #0f172a;
-    border: 2px solid #334155;
+    background: white;
+    border: 2px solid #e2e8f0;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btnPausePro:hover {
-    background-color: #334155;
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    transform: scale(1.05);
 }
 
 .pauseBars {
@@ -797,22 +889,23 @@
 }
 
 .btnStopPro {
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
-    background-color: #ef4444;
+    background: #ef4444;
     border: 4px solid #fee2e2;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btnStopPro:hover {
-    background-color: #dc2626;
+    background: #dc2626;
     border-color: #fca5a5;
+    transform: scale(1.1);
 }
 
 .stopSquare {
@@ -836,10 +929,30 @@
     border-radius: 6px;
     font-weight: 600;
     font-size: 0.875rem;
-    cursor: not-allowed;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     width: 250px;
     justify-content: center;
+}
+
+@media (max-width: 992px) {
+    .recordingFooterPro {
+        flex-direction: column;
+        gap: 1.5rem;
+        padding: 1rem;
+    }
+    
+    .footerDevice {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .footerControls {
+        width: 100%;
+    }
+    
+    .btnAiProcessingPro {
+        width: 100%;
+    }
 }
