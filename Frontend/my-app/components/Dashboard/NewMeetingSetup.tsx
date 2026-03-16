@@ -8,6 +8,8 @@ const NewMeetingSetup = () => {
     const router = useRouter();
     const [participants, setParticipants] = useState<{id: number; name: string}[]>([]);
     const [newParticipant, setNewParticipant] = useState('');
+    const [attachedFiles, setAttachedFiles] = useState<{name: string, size: string}[]>([]);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const handleAddParticipant = () => {
         if (newParticipant.trim()) {
@@ -18,6 +20,25 @@ const NewMeetingSetup = () => {
 
     const removeParticipant = (id: number) => {
         setParticipants(participants.filter(p => p.id !== id));
+    };
+
+    const handleFileUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files) {
+            const newFiles = Array.from(files).map(file => ({
+                name: file.name,
+                size: (file.size / (1024 * 1024)).toFixed(2) + ' MB'
+            }));
+            setAttachedFiles(prev => [...prev, ...newFiles]);
+        }
+    };
+
+    const removeFile = (index: number) => {
+        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
     };
 
     return (
@@ -202,7 +223,15 @@ const NewMeetingSetup = () => {
                         </div>
                     </div>
 
-                    <div className={styles.uploadArea}>
+                    <div className={styles.uploadArea} onClick={handleFileUploadClick} style={{ cursor: 'pointer' }}>
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            hidden 
+                            multiple 
+                            accept=".pptx" 
+                            onChange={handleFileChange}
+                        />
                         <div className={styles.uploadIcon}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="12" y2="12"></line><line x1="15" y1="15" x2="12" y2="12"></line></svg>
                         </div>
@@ -212,13 +241,32 @@ const NewMeetingSetup = () => {
 
                     <div className={styles.attachedFilesList}>
                         <p className={styles.attachedTitle}>ATTACHED CONTEXT FILES</p>
-                        <div className={styles.attachedFileItem} style={{ fontStyle: 'italic', color: '#64748b', background: 'transparent', border: '1px dashed #cbd5e1' }}>
-                            <div className={styles.fileInfo}>
-                                <div>
-                                    <div className={styles.fileName}>No files attached yet.</div>
+                        {attachedFiles.length === 0 ? (
+                            <div className={styles.attachedFileItem} style={{ fontStyle: 'italic', color: '#64748b', background: 'transparent', border: '1px dashed #cbd5e1' }}>
+                                <div className={styles.fileInfo}>
+                                    <div>
+                                        <div className={styles.fileName}>No files attached yet.</div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        ) : (
+                            attachedFiles.map((file, index) => (
+                                <div key={index} className={styles.attachedFileItem}>
+                                    <div className={styles.fileInfo}>
+                                        <div className={styles.fileIcon}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                        </div>
+                                        <div>
+                                            <div className={styles.fileName}>{file.name}</div>
+                                            <div className={styles.fileSize}>{file.size}</div>
+                                        </div>
+                                    </div>
+                                    <button className={styles.removeFileBtn} onClick={() => removeFile(index)}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </button>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
 

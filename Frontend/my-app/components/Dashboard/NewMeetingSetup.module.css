@@ -449,3 +449,18 @@
 .proceedBtn:hover {
     background-color: #4f46e5;
 }
+.removeFileBtn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.removeFileBtn:hover {
+    color: #ef4444;
+    background-color: #fef2f2;
+}

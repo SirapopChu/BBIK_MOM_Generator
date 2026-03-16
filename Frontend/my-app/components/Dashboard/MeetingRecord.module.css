@@ -318,6 +318,23 @@
     height: 200%;
 }
 
+.uploadedFilesList {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.uploadedFileItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
 .uploadIcon {
     width: 48px;
     height: 48px;
@@ -972,4 +989,37 @@
     .btnAiProcessingPro {
         width: 100%;
     }
+}
+
+.proceedActions {
+    margin-top: 3rem;
+    display: flex;
+    justify-content: center;
+    padding-bottom: 2rem;
+}
+
+.proceedBtn {
+    background-color: #6366f1;
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 1rem 2.5rem;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.proceedBtn:hover {
+    background-color: #4f46e5;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.5);
+}
+
+.proceedBtn:active {
+    transform: translateY(0);
 }
