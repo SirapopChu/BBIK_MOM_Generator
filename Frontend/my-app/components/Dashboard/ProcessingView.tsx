@@ -86,8 +86,8 @@ const ProcessingView: React.FC<ProcessingViewProps> = ({ onClose }) => {
                     </div>
 
                     <a 
-                        href="/20260313_TEST_weekly working #11_tactiq.pdf"
-                        download="20260313_TEST_weekly working #11_tactiq.pdf"
+                        href="/20260313_TEST_weekly_working_11_tactiq.pdf"
+                        download="20260313_TEST_weekly_working_11_tactiq.pdf"
                         className={styles.downloadBtn}
                         style={{ textDecoration: 'none' }}
                     >
