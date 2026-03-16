@@ -6,11 +6,7 @@ import styles from './NewMeetingSetup.module.css';
 
 const NewMeetingSetup = () => {
     const router = useRouter();
-    const [participants, setParticipants] = useState([
-        { id: 1, name: 'sarah.j@bluebik.com' },
-        { id: 2, name: 'tanochat.s@bluebik.com' },
-        { id: 3, name: 'mike.r@bluebik.com' }
-    ]);
+    const [participants, setParticipants] = useState<{id: number; name: string}[]>([]);
     const [newParticipant, setNewParticipant] = useState('');
 
     const handleAddParticipant = () => {
@@ -74,28 +70,28 @@ const NewMeetingSetup = () => {
 
                     <div className={styles.formGroup}>
                         <label>Meeting Title<span className={styles.required}>*</span></label>
-                        <input type="text" defaultValue="Weekly ITPM Sync - Q4 Planning" className={styles.input} />
+                        <input type="text" placeholder="Enter meeting title" className={styles.input} />
                     </div>
 
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>Department / Business Unit</label>
-                            <input type="text" defaultValue="DX Business Unit" className={styles.input} />
+                            <input type="text" placeholder="e.g. DX Business Unit" className={styles.input} />
                         </div>
                         <div className={styles.formGroup}>
                             <label>Minutes Template</label>
-                            <input type="text" defaultValue="Standard Corporate Minutes" className={styles.input} />
+                            <input type="text" placeholder="e.g. Standard Corporate Minutes" className={styles.input} />
                         </div>
                     </div>
 
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>Date<span className={styles.required}>*</span></label>
-                            <input type="date" defaultValue="2024-11-20" className={styles.input} />
+                            <input type="date" className={styles.input} />
                         </div>
                         <div className={styles.formGroup}>
                             <label>Start Time<span className={styles.required}>*</span></label>
-                            <input type="time" defaultValue="14:00" className={styles.input} />
+                            <input type="time" className={styles.input} />
                         </div>
                     </div>
 
@@ -216,17 +212,12 @@ const NewMeetingSetup = () => {
 
                     <div className={styles.attachedFilesList}>
                         <p className={styles.attachedTitle}>ATTACHED CONTEXT FILES</p>
-                        <div className={styles.attachedFileItem}>
+                        <div className={styles.attachedFileItem} style={{ fontStyle: 'italic', color: '#64748b', background: 'transparent', border: '1px dashed #cbd5e1' }}>
                             <div className={styles.fileInfo}>
-                                <div className={styles.fileIcon}>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e87c3e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><text x="9" y="15" fontSize="8" fontWeight="bold">P</text></svg>
-                                </div>
                                 <div>
-                                    <div className={styles.fileName}>ITPM_Q4_Roadmap_V2.pptx</div>
-                                    <div className={styles.fileSize}>4.2 MB</div>
+                                    <div className={styles.fileName}>No files attached yet.</div>
                                 </div>
                             </div>
-                            <span className={styles.removeFile}>×</span>
                         </div>
                     </div>
                 </div>

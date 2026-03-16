@@ -811,10 +811,11 @@
     padding: 1.25rem 2rem;
     background: #f8fafc;
     border-top: 1px solid #e2e8f0;
-    z-index: 50;
-    position: sticky;
+    z-index: 1000;
+    position: fixed;
     bottom: 0;
-    margin-top: auto;
+    left: 0;
+    right: 0;
 }
 
 .footerDevice {
