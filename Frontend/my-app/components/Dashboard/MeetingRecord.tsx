@@ -9,6 +9,8 @@ const MeetingRecord = () => {
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [timer, setTimer] = useState(0);
+    const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
 
     const waveContainerRef = useRef<HTMLDivElement>(null);
     const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -46,6 +48,47 @@ const MeetingRecord = () => {
         }
     }, []);
 
+    // Enumerate audio devices
+    const enumerateDevices = useCallback(async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+            console.warn('Media devices not supported');
+            return;
+        }
+
+        try {
+            // Check if we have permission already by checking labels
+            const preDevices = await navigator.mediaDevices.enumerateDevices();
+            const hasLabels = preDevices.some(d => d.label);
+
+            if (!hasLabels) {
+                // Trigger permission prompt to get device labels
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Stop the stream immediately,เราแค่ต้องการให้ label มันโผล่
+                    stream.getTracks().forEach(track => track.stop());
+                } catch (e) {
+                    console.log('Permission denied or dismissed');
+                }
+            }
+
+            const allDevices = await navigator.mediaDevices.enumerateDevices();
+            const audioInputs = allDevices.filter(device => device.kind === 'audioinput');
+            setDevices(audioInputs);
+            
+            if (audioInputs.length > 0 && !selectedDeviceId) {
+                // Try to find a default device or just pick the first
+                const defaultDevice = audioInputs.find(d => d.deviceId === 'default') || audioInputs[0];
+                setSelectedDeviceId(defaultDevice.deviceId);
+            }
+        } catch (err) {
+            console.error('Error enumerating devices:', err);
+        }
+    }, [selectedDeviceId]);
+
+    useEffect(() => {
+        enumerateDevices();
+    }, [enumerateDevices]);
+
     // Initialize WaveSurfer after the recording UI is rendered
     const initWaveSurfer = useCallback(() => {
         if (!waveContainerRef.current) return;
@@ -77,7 +120,7 @@ const MeetingRecord = () => {
             wavesurferRef.current = wavesurfer;
             recordPluginRef.current = record;
 
-            record.startRecording().catch((err: any) => {
+            record.startRecording({ deviceId: selectedDeviceId }).catch((err: any) => {
                 console.error('Error starting mic:', err);
                 if (err.message && err.message.includes('system')) {
                     alert("Microphone access is blocked by macOS. Please go to System Settings → Privacy & Security → Microphone, and grant access to your browser.");
@@ -92,7 +135,7 @@ const MeetingRecord = () => {
             setIsRecording(false);
             cleanupWaveSurfer();
         }
-    }, [cleanupWaveSurfer]);
+    }, [cleanupWaveSurfer, selectedDeviceId]);
 
     // When isRecording becomes true, wait for DOM then init wavesurfer
     useEffect(() => {
@@ -253,7 +296,18 @@ const MeetingRecord = () => {
                             </div>
                             <div className={styles.footerDeviceT}>
                                 <div className={styles.footerDeviceL}>INPUT DEVICE</div>
-                                <div className={styles.footerDeviceV}>MacBook Pro Mic (Internal)</div>
+                                <select 
+                                    className={styles.deviceSelect}
+                                    value={selectedDeviceId}
+                                    onChange={(e) => setSelectedDeviceId(e.target.value)}
+                                    disabled={isRecording}
+                                >
+                                    {devices.map(device => (
+                                        <option key={device.deviceId} value={device.deviceId}>
+                                            {device.label || `Microphone ${device.deviceId.slice(0, 5)}`}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
