@@ -15,7 +15,9 @@
 
 ### install Frrontend
 
-    1. cd Frontend
+    1.  cd Frontend
 
     2.  npx create-next-app@latest --typescript --tailwind --eslint
+
+
 
