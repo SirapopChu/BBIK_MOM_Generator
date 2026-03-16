@@ -551,15 +551,11 @@
     width: 100%;
     max-width: 600px;
     height: 100px;
-    border: 1px dashed #e2e8f0;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     background-color: #f8fafc;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
     margin-bottom: 2rem;
-    padding: 0 1rem;
+    overflow: hidden;
     box-sizing: border-box;
 }
 
@@ -1023,3 +1019,181 @@
 .proceedBtn:active {
     transform: translateY(0);
 }
+
+/* Modal Overlay */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 1.5rem;
+}
+
+/* Save Modal */
+.saveModal {
+    background: white;
+    border-radius: 24px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    animation: modalAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalAppear {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.saveModalHeader {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.saveModalTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.closeModalBtn {
+    background: #f1f5f9;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.closeModalBtn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.saveModalContent {
+    padding: 2rem;
+}
+
+.savePreview {
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+    background: #f8fafc;
+    padding: 1.25rem;
+    border-radius: 16px;
+    margin-bottom: 2rem;
+    border: 1px solid #f1f5f9;
+}
+
+.previewIcon {
+    width: 64px;
+    height: 64px;
+    background: white;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.previewName {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.previewSize {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.inputGroup {
+    margin-bottom: 2rem;
+}
+
+.inputLabel {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+.fileNameInput {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #0f172a;
+    transition: all 0.2s;
+}
+
+.fileNameInput:focus {
+    border-color: #6366f1;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.saveActions {
+    display: flex;
+    gap: 1rem;
+}
+
+.btnPrimary {
+    flex: 2;
+    background-color: #6366f1;
+    color: white;
+    font-weight: 600;
+    padding: 1rem;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.btnPrimary:hover {
+    background-color: #4f46e5;
+}
+
+.btnSecondary {
+    flex: 1;
+    background-color: #f1f5f9;
+    color: #64748b;
+    font-weight: 600;
+    padding: 1rem;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btnSecondary:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+}
+
+.segmentRed { background-color: #ef4444; }

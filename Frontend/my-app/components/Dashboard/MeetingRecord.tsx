@@ -22,6 +22,12 @@ const MeetingRecord = () => {
     const wavesurferRef = useRef<WaveSurfer | null>(null);
     const recordPluginRef = useRef<any>(null);
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    
+    // New states for actual recording and save flow
+    const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+    const [showSaveModal, setShowSaveModal] = useState(false);
+    const [volume, setVolume] = useState(0);
+    const [recordingName, setRecordingName] = useState(`Meeting_${new Date().toISOString().slice(0, 10)}_${new Date().getHours()}${new Date().getMinutes()}`);
 
     // Format timer to HH:MM:SS
     const formatTime = (seconds: number) => {
@@ -126,7 +132,47 @@ const MeetingRecord = () => {
             wavesurferRef.current = wavesurfer;
             recordPluginRef.current = record;
 
-            record.startRecording({ deviceId: selectedDeviceId }).catch((err: any) => {
+            // Handle record events
+            record.on('record-end', (blob: Blob) => {
+                console.log('Recording ended, blob size:', blob.size);
+                setRecordedBlob(blob);
+                setShowSaveModal(true);
+                setIsRecording(false);
+                setIsPaused(false);
+            });
+
+            // Track volume for the health panel
+            // We can use the pulse event if available, or analyze the stream
+            // In wavesurfer v7 RecordPlugin, we can access the underlying mic stream
+            
+            // Start recording
+            record.startRecording({ deviceId: selectedDeviceId }).then(() => {
+                // Monitor volume using Web Audio API
+                const stream = (record as any).stream;
+                if (stream) {
+                    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    const source = audioContext.createMediaStreamSource(stream);
+                    const analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 256;
+                    source.connect(analyser);
+                    
+                    const bufferLength = analyser.frequencyBinCount;
+                    const dataArray = new Uint8Array(bufferLength);
+                    
+                    const updateVolume = () => {
+                        if (!isRecording) return;
+                        analyser.getByteFrequencyData(dataArray);
+                        let sum = 0;
+                        for (let i = 0; i < bufferLength; i++) {
+                            sum += dataArray[i];
+                        }
+                        const average = sum / bufferLength;
+                        setVolume(average);
+                        requestAnimationFrame(updateVolume);
+                    };
+                    updateVolume();
+                }
+            }).catch((err: any) => {
                 console.error('Error starting mic:', err);
                 if (err.message && err.message.includes('system')) {
                     alert("Microphone access is blocked by macOS. Please go to System Settings → Privacy & Security → Microphone, and grant access to your browser.");
@@ -141,7 +187,7 @@ const MeetingRecord = () => {
             setIsRecording(false);
             cleanupWaveSurfer();
         }
-    }, [cleanupWaveSurfer, selectedDeviceId]);
+    }, [cleanupWaveSurfer, selectedDeviceId, isRecording]);
 
     // When isRecording becomes true, wait for DOM then init wavesurfer
     useEffect(() => {
@@ -196,9 +242,37 @@ const MeetingRecord = () => {
     };
 
     const handleStopRecording = () => {
+        if (recordPluginRef.current) {
+            recordPluginRef.current.stopRecording();
+            // Note: cleanupWaveSurfer() will be called after save or when closing the modal
+        } else {
+            setIsRecording(false);
+            setIsPaused(false);
+            cleanupWaveSurfer();
+        }
+    };
+
+    const handleDownloadMP3 = () => {
+        if (!recordedBlob) return;
+        
+        // In a real app, we might use a library like lamejs to encode as true MP3.
+        // For now, we'll download the recorded blob (usually webm/wav) renamed to mp3
+        // or just use the browser default if it's compatible.
+        const url = URL.createObjectURL(recordedBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${recordingName || 'meeting_recording'}.mp3`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        setShowSaveModal(false);
         cleanupWaveSurfer();
-        setIsRecording(false);
-        setIsPaused(false);
+    };
+
+    const handleCloseSaveModal = () => {
+        setShowSaveModal(false);
+        setRecordedBlob(null);
+        cleanupWaveSurfer();
     };
 
     const handleAudioUploadClick = () => {
@@ -301,12 +375,19 @@ const MeetingRecord = () => {
                                     <div className={styles.healthLevel}>
                                         <div className={styles.healthTitle}>
                                             <span>INPUT GAIN</span>
-                                            <span>72%</span>
+                                            <span>{Math.round(Math.min(100, (volume / 128) * 100))}%</span>
                                         </div>
                                         <div className={styles.healthBar}>
-                                            {Array.from({ length: 20 }).map((_, i) => (
-                                                <div key={i} className={`${styles.healthSegment} ${i < 14 ? styles.segmentGreen : i < 16 ? styles.segmentYellow : ''}`}></div>
-                                            ))}
+                                            {Array.from({ length: 20 }).map((_, i) => {
+                                                const level = (volume / 128) * 20;
+                                                const isActive = i < level;
+                                                return (
+                                                    <div 
+                                                        key={i} 
+                                                        className={`${styles.healthSegment} ${isActive ? (i < 14 ? styles.segmentGreen : i < 16 ? styles.segmentYellow : styles.segmentRed) : ''}`}
+                                                    ></div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
 
@@ -576,6 +657,50 @@ const MeetingRecord = () => {
                                 >
                                     Continue to Process
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* ==== SAVE MODAL ==== */}
+            {showSaveModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.saveModal}>
+                        <div className={styles.saveModalHeader}>
+                            <h2 className={styles.saveModalTitle}>Recording Complete</h2>
+                            <button className={styles.closeModalBtn} onClick={handleCloseSaveModal}>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+                        
+                        <div className={styles.saveModalContent}>
+                            <div className={styles.savePreview}>
+                                <div className={styles.previewIcon}>
+                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="1.5"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                                </div>
+                                <div className={styles.previewDetails}>
+                                    <div className={styles.previewName}>{formatTime(timer)} Duration</div>
+                                    <div className={styles.previewSize}>{(recordedBlob!.size / (1024 * 1024)).toFixed(2)} MB • Audio Capture</div>
+                                </div>
+                            </div>
+
+                            <div className={styles.inputGroup}>
+                                <label className={styles.inputLabel}>File Name</label>
+                                <input 
+                                    type="text" 
+                                    className={styles.fileNameInput} 
+                                    value={recordingName}
+                                    onChange={(e) => setRecordingName(e.target.value)}
+                                    placeholder="Enter file name..."
+                                />
+                            </div>
+
+                            <div className={styles.saveActions}>
+                                <button className={styles.btnSecondary} onClick={handleCloseSaveModal}>Discard</button>
+                                <button className={styles.btnPrimary} onClick={handleDownloadMP3}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                    Save as MP3
                                 </button>
                             </div>
                         </div>
