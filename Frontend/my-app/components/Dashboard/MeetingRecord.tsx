@@ -4,10 +4,12 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js';
 import styles from './MeetingRecord.module.css';
+import ProcessingView from './ProcessingView';
 
 const MeetingRecord = () => {
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [timer, setTimer] = useState(0);
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
@@ -239,6 +241,8 @@ const MeetingRecord = () => {
 
     return (
         <>
+            {isProcessing && <ProcessingView onClose={() => setIsProcessing(false)} />}
+            
             {/* ==== RECORDING MODE ==== */}
             {isRecording && (
                 <div className={styles.recordingMode}>
@@ -565,7 +569,11 @@ const MeetingRecord = () => {
 
                             {/* Continue Button inside Card */}
                             <div className={styles.proceedActions} style={{ marginTop: '2.5rem', marginBottom: '0.5rem' }}>
-                                <button className={styles.proceedBtn} style={{ width: '100%', justifyContent: 'center', padding: '0.875rem 2rem' }}>
+                                <button 
+                                    className={styles.proceedBtn} 
+                                    style={{ width: '100%', justifyContent: 'center', padding: '0.875rem 2rem' }}
+                                    onClick={() => setIsProcessing(true)}
+                                >
                                     Continue to Process
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                                 </button>
