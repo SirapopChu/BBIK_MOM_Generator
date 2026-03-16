@@ -69,7 +69,7 @@ const LandingContent = () => {
                                 <div className={styles.statLabel}>MEETINGS SAVED TODAY</div>
                                 <div className={styles.statValueContainer}>
                                     <span className={styles.statValue}>-</span>
-                                    <span className={`${styles.statBadge} ${styles.statBadgePositive}`}>+24%</span>
+                                    <span className={`${styles.statBadge} ${styles.statBadgePositive}`}>-</span>
                                 </div>
                             </div>
                             <div className={styles.statIcon}>
@@ -82,7 +82,7 @@ const LandingContent = () => {
                                 <div className={styles.statLabel}>AVG. PROCESSING TIME</div>
                                 <div className={styles.statValueContainer}>
                                     <span className={styles.statValue}>-</span>
-                                    <span className={`${styles.statBadge} ${styles.statBadgePositive}`}>-12%</span>
+                                    <span className={`${styles.statBadge} ${styles.statBadgePositive}`}>-</span>
                                 </div>
                             </div>
                             <div className={styles.statIcon}>
