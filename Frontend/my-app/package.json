@@ -9,9 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "autoprefixer": "^10.4.27",
     "next": "16.1.6",
+    "postcss": "^8.5.8",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "wavesurfer.js": "^7.12.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",

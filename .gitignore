@@ -217,5 +217,6 @@ Frontend/node_modules/
 Frontend/package.json
 Frontend/package-lock.json
 Frontend/.DS_Store
+Frontend/my-app/package-lock.json
 
 
