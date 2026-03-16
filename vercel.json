@@ -1,0 +1,6 @@
+{
+  "framework": "nextjs",
+  "rootDirectory": "Frontend/my-app",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build"
+}
