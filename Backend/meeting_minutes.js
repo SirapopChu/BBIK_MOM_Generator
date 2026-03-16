@@ -200,7 +200,7 @@ async function main() {
 
     // ── HEADER: logo ──────────────────────────────────────────────────
     const path = require('path');
-    const LOGO_PATH = path.join(__dirname, 'Backend', 'Bluebik_Logo_2025_Horizontal_Primary_Logo_Black.png'); // ← แก้ path ตรงนี้
+    const LOGO_PATH = path.join(__dirname,'Bluebik_Logo_2025_Horizontal_Primary_Logo_Black.png'); // ← แก้ path ตรงนี้
     let headerChildren = [];
     if (fs.existsSync(LOGO_PATH)) {
         const logoData = fs.readFileSync(LOGO_PATH);
