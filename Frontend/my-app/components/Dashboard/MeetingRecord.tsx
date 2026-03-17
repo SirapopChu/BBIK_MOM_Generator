@@ -14,7 +14,8 @@ const MeetingRecord = () => {
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
     const [uploadedAudioFiles, setUploadedAudioFiles] = useState<{name: string, size: string}[]>([]);
-    const [uploadedTranscribeFiles, setUploadedTranscribeFiles] = useState<{name: string, size: string}[]>([]);
+    // Store actual File objects so we can read their content later
+    const [uploadedTranscribeFiles, setUploadedTranscribeFiles] = useState<File[]>([]);
     const audioFileInputRef = useRef<HTMLInputElement>(null);
     const transcribeFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -357,16 +358,71 @@ const MeetingRecord = () => {
     const handleTranscribeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
-            const newFiles = Array.from(files).map(file => ({
-                name: file.name,
-                size: (file.size / 1024).toFixed(2) + ' KB'
-            }));
-            setUploadedTranscribeFiles(prev => [...prev, ...newFiles]);
+            // Store real File objects
+            setUploadedTranscribeFiles(prev => [...prev, ...Array.from(files)]);
         }
+        // Reset input so re-selecting same file triggers onChange
+        e.target.value = '';
     };
 
     const removeTranscribeFile = (index: number) => {
         setUploadedTranscribeFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const clearAudioFiles = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setUploadedAudioFiles([]);
+        if (audioFileInputRef.current) audioFileInputRef.current.value = '';
+    };
+
+    const clearTranscribeFiles = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setUploadedTranscribeFiles([]);
+        if (transcribeFileInputRef.current) transcribeFileInputRef.current.value = '';
+    };
+
+    // ── Generate DOCX from transcript file via Claude ──────────
+    const handleGenerateDocx = async () => {
+        if (uploadedTranscribeFiles.length === 0) {
+            alert('กรุณาอัปโหลดไฟล์ transcript ก่อนครับ');
+            return;
+        }
+
+        const file = uploadedTranscribeFiles[0]; // use first file
+        setIsProcessing(true);
+
+        try {
+            const text = await file.text();
+            const baseName = file.name.replace(/\.(txt|md)$/i, '');
+
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('filename', baseName);
+
+            const res = await fetch('http://localhost:3001/api/minutes/export-docx', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ error: `Server error ${res.status}` }));
+                throw new Error(err.error || `Server error ${res.status}`);
+            }
+
+            // Download the returned .docx blob
+            const blob = await res.blob();
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = `${baseName}_meeting_minutes.docx`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            console.error('[GenerateDocx]', err);
+            alert(`เกิดข้อผิดพลาด: ${err.message}`);
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     return (
@@ -637,79 +693,56 @@ const MeetingRecord = () => {
                                     <div className={styles.uploadIcon} style={{ width: '36px', height: '36px', marginBottom: '0.5rem' }}>
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                                     </div>
-                                    <p className={styles.uploadText}>Click or drag audio</p>
+                                    <p className={styles.uploadText}>
+                                        {uploadedAudioFiles.length > 0 
+                                            ? uploadedAudioFiles.map(f => f.name).join(', ') 
+                                            : 'Click or drag audio'}
+                                    </p>
+                                    {uploadedAudioFiles.length > 0 && (
+                                        <button className={styles.clearUploadBtn} onClick={clearAudioFiles} title="Clear files">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        </button>
+                                    )}
                                 </div>
 
-                                {uploadedAudioFiles.length > 0 && (
-                                    <div className={styles.uploadedFilesList}>
-                                        {uploadedAudioFiles.map((file, index) => (
-                                            <div key={index} className={styles.uploadedFileItem}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
-                                                    <div>
-                                                        <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>{file.name}</div>
-                                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{file.size}</div>
-                                                    </div>
-                                                </div>
-                                                <button 
-                                                    onClick={() => removeAudioFile(index)}
-                                                    style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
-                                                >
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
 
                             {/* Transcribe Upload Section */}
                             <div style={{ marginTop: '2rem' }}>
                                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>TRANSCRIPT FILE (.TXT, .MD)</div>
                                 <div className={styles.uploadArea} onClick={handleTranscribeUploadClick} style={{ cursor: 'pointer', height: '160px', padding: '1rem' }}>
-                                    <input 
-                                        type="file" 
-                                        ref={transcribeFileInputRef} 
-                                        hidden 
-                                        multiple 
-                                        accept=".txt,.md" 
+                                    <input
+                                        type="file"
+                                        ref={transcribeFileInputRef}
+                                        hidden
+                                        multiple
+                                        accept=".txt,.md"
                                         onChange={handleTranscribeFileChange}
                                     />
                                     <div className={styles.uploadIcon} style={{ width: '36px', height: '36px', marginBottom: '0.5rem' }}>
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="12" y2="12"></line><line x1="15" y1="15" x2="12" y2="12"></line></svg>
                                     </div>
-                                    <p className={styles.uploadText}>Click or drag transcript</p>
+                                    <p className={styles.uploadText}>
+                                        {uploadedTranscribeFiles.length > 0 
+                                            ? uploadedTranscribeFiles.map(f => f.name).join(', ') 
+                                            : 'Click or drag transcript'}
+                                    </p>
+                                    {uploadedTranscribeFiles.length > 0 && (
+                                        <button className={styles.clearUploadBtn} onClick={clearTranscribeFiles} title="Clear files">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        </button>
+                                    )}
                                 </div>
 
-                                {uploadedTranscribeFiles.length > 0 && (
-                                    <div className={styles.uploadedFilesList}>
-                                        {uploadedTranscribeFiles.map((file, index) => (
-                                            <div key={index} className={styles.uploadedFileItem}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                                    <div>
-                                                        <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>{file.name}</div>
-                                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{file.size}</div>
-                                                    </div>
-                                                </div>
-                                                <button 
-                                                    onClick={() => removeTranscribeFile(index)}
-                                                    style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
-                                                >
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
 
                             {/* Continue Button inside Card */}
                             <div className={styles.proceedActions} style={{ marginTop: '2.5rem', marginBottom: '0.5rem' }}>
-                                <button 
-                                    className={styles.proceedBtn} 
-                                    style={{ width: '100%', justifyContent: 'center', padding: '0.875rem 2rem' }}
-                                    onClick={() => setIsProcessing(true)}
+                                <button
+                                    className={styles.proceedBtn}
+                                    style={{ width: '100%', justifyContent: 'center', padding: '0.875rem 2rem', opacity: uploadedTranscribeFiles.length === 0 ? 0.5 : 1 }}
+                                    onClick={handleGenerateDocx}
+                                    disabled={uploadedTranscribeFiles.length === 0}
                                 >
                                     Continue to Process
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
