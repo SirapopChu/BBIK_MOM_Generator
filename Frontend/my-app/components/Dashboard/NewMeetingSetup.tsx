@@ -1,15 +1,43 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './NewMeetingSetup.module.css';
 
 const NewMeetingSetup = () => {
     const router = useRouter();
+    
+    // Form state
+    const [title, setTitle] = useState('');
+    const [bu, setBu] = useState('');
+    const [template, setTemplate] = useState('Standard Corporate Minutes');
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [startTime, setStartTime] = useState(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+    const [agenda, setAgenda] = useState('');
+    
     const [participants, setParticipants] = useState<{ id: number; name: string }[]>([]);
     const [newParticipant, setNewParticipant] = useState('');
     const [attachedFiles, setAttachedFiles] = useState<{ name: string, size: string }[]>([]);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    // Load from localStorage if exists
+    useEffect(() => {
+        const saved = localStorage.getItem('meeting_metadata');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                setTitle(data.title || '');
+                setBu(data.bu || '');
+                setTemplate(data.template || 'Standard Corporate Minutes');
+                setDate(data.date || new Date().toISOString().split('T')[0]);
+                setStartTime(data.startTime || '');
+                setAgenda(data.agenda || '');
+                if (data.participants) setParticipants(data.participants.map((p: string, i: number) => ({ id: i, name: p })));
+            } catch (e) {
+                console.error('Failed to load metadata', e);
+            }
+        }
+    }, []);
 
     const handleAddParticipant = () => {
         if (newParticipant.trim()) {
@@ -22,23 +50,24 @@ const NewMeetingSetup = () => {
         setParticipants(participants.filter(p => p.id !== id));
     };
 
-    const handleFileUploadClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (files) {
-            const newFiles = Array.from(files).map(file => ({
-                name: file.name,
-                size: (file.size / (1024 * 1024)).toFixed(2) + ' MB'
-            }));
-            setAttachedFiles(prev => [...prev, ...newFiles]);
+    const handleProceed = () => {
+        if (!title.trim() || !date || !startTime) {
+            alert('Please fill in required fields (Title, Date, Start Time)');
+            return;
         }
-    };
 
-    const removeFile = (index: number) => {
-        setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+        const metadata = {
+            title,
+            bu,
+            template,
+            date,
+            startTime,
+            agenda,
+            participants: participants.map(p => p.name)
+        };
+
+        localStorage.setItem('meeting_metadata', JSON.stringify(metadata));
+        router.push('/dashboard/record');
     };
 
     return (
@@ -91,34 +120,67 @@ const NewMeetingSetup = () => {
 
                     <div className={styles.formGroup}>
                         <label>Meeting Title<span className={styles.required}>*</span></label>
-                        <input type="text" placeholder="Enter meeting title" className={styles.input} />
+                        <input 
+                            type="text" 
+                            placeholder="Enter meeting title" 
+                            className={styles.input} 
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                        />
                     </div>
 
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>Department / Business Unit</label>
-                            <input type="text" placeholder="e.g. DX Business Unit" className={styles.input} />
+                            <input 
+                                type="text" 
+                                placeholder="e.g. DX Business Unit" 
+                                className={styles.input} 
+                                value={bu}
+                                onChange={(e) => setBu(e.target.value)}
+                            />
                         </div>
                         <div className={styles.formGroup}>
                             <label>Minutes Template</label>
-                            <input type="text" placeholder="e.g. Standard Corporate Minutes" className={styles.input} />
+                            <input 
+                                type="text" 
+                                placeholder="e.g. Standard Corporate Minutes" 
+                                className={styles.input} 
+                                value={template}
+                                onChange={(e) => setTemplate(e.target.value)}
+                            />
                         </div>
                     </div>
 
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>Date<span className={styles.required}>*</span></label>
-                            <input type="date" className={styles.input} />
+                            <input 
+                                type="date" 
+                                className={styles.input} 
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                            />
                         </div>
                         <div className={styles.formGroup}>
                             <label>Start Time<span className={styles.required}>*</span></label>
-                            <input type="time" className={styles.input} />
+                            <input 
+                                type="time" 
+                                className={styles.input} 
+                                value={startTime}
+                                onChange={(e) => setStartTime(e.target.value)}
+                            />
                         </div>
                     </div>
 
                     <div className={styles.formGroup}>
                         <label>Agenda</label>
-                        <textarea className={styles.textarea} rows={4}></textarea>
+                        <textarea 
+                            className={styles.textarea} 
+                            rows={4}
+                            value={agenda}
+                            onChange={(e) => setAgenda(e.target.value)}
+                        ></textarea>
                     </div>
                 </div>
 
@@ -156,10 +218,8 @@ const NewMeetingSetup = () => {
                     </div>
                 </div>
 
-
-
                 <div className={styles.actions}>
-                    <button className={styles.proceedBtn} onClick={() => router.push('/dashboard/record')}>
+                    <button className={styles.proceedBtn} onClick={handleProceed}>
                         Proceed to Recording
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                     </button>

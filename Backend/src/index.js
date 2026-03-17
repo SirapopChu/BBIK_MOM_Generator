@@ -4,6 +4,7 @@ import cors    from 'cors';
 import { config } from './config/index.js';
 import minutesRouter    from './routes/minutes.routes.js';
 import transcribeRouter from './routes/transcribe.routes.js';
+import tasksRouter from './routes/tasks.routes.js';
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.get('/health', (_req, res) =>
 
 app.use('/api/minutes',    minutesRouter);
 app.use('/api/transcribe', transcribeRouter);
+app.use('/api/tasks',      tasksRouter);
 
 // 404 handler
 app.use((_req, res) => res.status(404).json({ error: 'Route not found' }));
@@ -38,5 +40,7 @@ app.listen(config.server.port, () => {
     console.log(`   GET  /health`);
     console.log(`   POST /api/transcribe`);
     console.log(`   POST /api/minutes/generate`);
-    console.log(`   POST /api/minutes/export-docx\n`);
+    console.log(`   POST /api/minutes/export-docx`);
+    console.log(`   GET  /api/tasks`);
+    console.log(`   GET  /api/tasks/:id/logs\n`);
 });

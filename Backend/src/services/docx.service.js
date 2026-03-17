@@ -67,19 +67,19 @@ function extractSection(result, startMarker, endMarker) {
 }
 
 // ── Build the DOCX buffer from LLM result ────────────────────
-export async function buildDocxBuffer(result) {
-    const meetingName  = extractInfo(result, 'Meeting Name');
-    const meetingDate  = extractInfo(result, 'Date');
-    const location     = extractInfo(result, 'Location');
-    const duration     = extractInfo(result, 'Duration');
-    const participants = extractInfo(result, 'Participants');
+export async function buildDocxBuffer(result, metadata = null) {
+    const meetingName  = metadata?.title || extractInfo(result, 'Meeting Name');
+    const meetingDate  = metadata?.date  || extractInfo(result, 'Date');
+    const location     = metadata?.bu    || extractInfo(result, 'Location');
+    const duration     = metadata?.startTime ? `${metadata.startTime} onwards` : extractInfo(result, 'Duration');
+    const participants = metadata?.participants?.join(', ') || extractInfo(result, 'Participants');
 
     const agendaLines = extractSection(result, '---AGENDA_TABLE---', '---DISCUSSION---')
         .filter(l => l.includes('|') && !l.includes('หัวข้อ') && !l.includes('Topic'));
 
     const discLines = extractSection(result, '---DISCUSSION---', '---END---');
 
-    const agendaSummary = agendaLines
+    let agendaSummary = metadata?.agenda || agendaLines
         .map(l => l.split('|').slice(1).join('|').trim())
         .join('  |  ');
 

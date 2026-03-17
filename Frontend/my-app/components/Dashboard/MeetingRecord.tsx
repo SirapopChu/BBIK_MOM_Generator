@@ -381,6 +381,55 @@ const MeetingRecord = () => {
         if (transcribeFileInputRef.current) transcribeFileInputRef.current.value = '';
     };
 
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.add(styles.uploadAreaActive);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.remove(styles.uploadAreaActive);
+    };
+
+    const handleAudioDrop = (e: React.DragEvent) => {
+        if (isRecording) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.remove(styles.uploadAreaActive);
+        
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const files = Array.from(e.dataTransfer.files);
+            const audioFiles = files.filter(f => /\.(mp3|wav|m4a|webm)$/i.test(f.name));
+            if (audioFiles.length > 0) {
+                setUploadedAudioFiles(prev => [...prev, ...audioFiles.map(file => ({
+                    name: file.name,
+                    size: (file.size / (1024 * 1024)).toFixed(2) + ' MB'
+                }))]);
+            } else {
+                alert('Please upload audio files (.mp3, .wav, .m4a, .webm)');
+            }
+        }
+    };
+
+    const handleTranscribeDrop = (e: React.DragEvent) => {
+        if (isRecording) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.remove(styles.uploadAreaActive);
+        
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const files = Array.from(e.dataTransfer.files);
+            const textFiles = files.filter(f => /\.(txt|md|pdf|doc|docx)$/i.test(f.name));
+            if (textFiles.length > 0) {
+                setUploadedTranscribeFiles(prev => [...prev, ...textFiles]);
+            } else {
+                alert('Please upload transcript files (.txt, .md, .pdf, .docx)');
+            }
+        }
+    };
+
     // ── Generate DOCX from transcript file via Claude ──────────
     const handleGenerateDocx = async () => {
         if (uploadedTranscribeFiles.length === 0) {
@@ -393,11 +442,23 @@ const MeetingRecord = () => {
 
         try {
             const text = await file.text();
-            const baseName = file.name.replace(/\.(txt|md)$/i, '');
+            const baseName = file.name.replace(/\.(txt|md|pdf|doc|docx)$/i, '');
 
             const formData = new FormData();
             formData.append('text', text);
             formData.append('filename', baseName);
+            
+            // Get metadata from localStorage
+            const savedMetadata = localStorage.getItem('meeting_metadata');
+            let docName = baseName;
+            
+            if (savedMetadata) {
+                formData.append('metadata', savedMetadata);
+                try {
+                    const meta = JSON.parse(savedMetadata);
+                    if (meta.title) docName = meta.title.replace(/\s+/g, '_');
+                } catch(e) {}
+            }
 
             const res = await fetch('http://localhost:3001/api/minutes/export-docx', {
                 method: 'POST',
@@ -414,7 +475,7 @@ const MeetingRecord = () => {
             const url  = URL.createObjectURL(blob);
             const a    = document.createElement('a');
             a.href     = url;
-            a.download = `${baseName}_meeting_minutes.docx`;
+            a.download = `${docName}_meeting_minutes.docx`;
             a.click();
             URL.revokeObjectURL(url);
         } catch (err: any) {
@@ -681,7 +742,14 @@ const MeetingRecord = () => {
                             {/* Audio Upload Section */}
                             <div style={{ marginTop: '1.5rem' }}>
                                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>AUDIO FILE (.MP3, .WAV, .M4A)</div>
-                                <div className={styles.uploadArea} onClick={handleAudioUploadClick} style={{ cursor: 'pointer', height: '160px', padding: '1rem' }}>
+                                <div 
+                                    className={`${styles.uploadArea} ${isRecording ? styles.uploadAreaDisabled : ''}`} 
+                                    onClick={() => !isRecording && handleAudioUploadClick()}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleAudioDrop}
+                                    style={{ cursor: isRecording ? 'not-allowed' : 'pointer', height: '160px', padding: '1rem' }}
+                                >
                                     <input 
                                         type="file" 
                                         ref={audioFileInputRef} 
@@ -709,14 +777,21 @@ const MeetingRecord = () => {
 
                             {/* Transcribe Upload Section */}
                             <div style={{ marginTop: '2rem' }}>
-                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>TRANSCRIPT FILE (.TXT, .MD)</div>
-                                <div className={styles.uploadArea} onClick={handleTranscribeUploadClick} style={{ cursor: 'pointer', height: '160px', padding: '1rem' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>TRANSCRIPT FILE (.TXT, .MD, .PDF, .DOCX)</div>
+                                <div 
+                                    className={`${styles.uploadArea} ${isRecording ? styles.uploadAreaDisabled : ''}`} 
+                                    onClick={() => !isRecording && handleTranscribeUploadClick()}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleTranscribeDrop}
+                                    style={{ cursor: isRecording ? 'not-allowed' : 'pointer', height: '160px', padding: '1rem' }}
+                                >
                                     <input
                                         type="file"
                                         ref={transcribeFileInputRef}
                                         hidden
                                         multiple
-                                        accept=".txt,.md"
+                                        accept=".txt,.md,.pdf,.doc,.docx"
                                         onChange={handleTranscribeFileChange}
                                     />
                                     <div className={styles.uploadIcon} style={{ width: '36px', height: '36px', marginBottom: '0.5rem' }}>

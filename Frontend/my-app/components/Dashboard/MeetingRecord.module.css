@@ -318,6 +318,20 @@
     height: 200%;
 }
 
+.uploadAreaActive {
+    border-color: #6366f1 !important;
+    background: #eff6ff !important;
+    transform: scale(1.02);
+    box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.1);
+}
+
+.uploadAreaDisabled {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(1);
+    background: #f8fafc !important;
+}
+
 .clearUploadBtn {
     position: absolute;
     top: 0.75rem;
