@@ -29,6 +29,11 @@ const MeetingRecord = () => {
     const [volume, setVolume] = useState(0);
     const [recordingName, setRecordingName] = useState(`Meeting_${new Date().toISOString().slice(0, 10)}_${new Date().getHours()}${new Date().getMinutes()}`);
 
+    // Transcription states
+    const [isTranscribing, setIsTranscribing] = useState(false);
+    const [transcriptResult, setTranscriptResult] = useState<{ text: string; language: string | null; duration: number | null; segments: { id: number; start: number; end: number; text: string }[] } | null>(null);
+    const [transcriptError, setTranscriptError] = useState<string | null>(null);
+
     // Format timer to HH:MM:SS
     const formatTime = (seconds: number) => {
         const h = Math.floor(seconds / 3600);
@@ -272,7 +277,58 @@ const MeetingRecord = () => {
     const handleCloseSaveModal = () => {
         setShowSaveModal(false);
         setRecordedBlob(null);
+        setTranscriptResult(null);
+        setTranscriptError(null);
+        setIsTranscribing(false);
         cleanupWaveSurfer();
+    };
+
+    // ── Transcribe with OpenAI Whisper via backend ──────────────
+    const handleTranscribe = async () => {
+        if (!recordedBlob) return;
+        setIsTranscribing(true);
+        setTranscriptResult(null);
+        setTranscriptError(null);
+
+        try {
+            const formData = new FormData();
+            // Use webm extension so the backend/Whisper knows the format
+            const ext = recordedBlob.type.includes('mp4') ? 'mp4'
+                      : recordedBlob.type.includes('wav') ? 'wav'
+                      : 'webm';
+            formData.append('audio', recordedBlob, `recording.${ext}`);
+            formData.append('language', 'th'); // hint Thai; change to '' for auto-detect
+
+            const res = await fetch('http://localhost:3001/api/transcribe', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || `Server error ${res.status}`);
+            }
+
+            const data = await res.json();
+            setTranscriptResult(data);
+        } catch (err: any) {
+            setTranscriptError(err.message || 'Unknown error');
+        } finally {
+            setIsTranscribing(false);
+        }
+    };
+
+    // ── Download transcript as .txt file ─────────────────────────
+    const handleDownloadTranscript = () => {
+        if (!transcriptResult) return;
+        const content = transcriptResult.text;
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `${recordingName || 'transcript'}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
     };
 
     const handleAudioUploadClick = () => {
@@ -673,8 +729,9 @@ const MeetingRecord = () => {
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                         </div>
-                        
+
                         <div className={styles.saveModalContent}>
+                            {/* Preview row */}
                             <div className={styles.savePreview}>
                                 <div className={styles.previewIcon}>
                                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="1.5"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
@@ -682,25 +739,86 @@ const MeetingRecord = () => {
                                 <div className={styles.previewDetails}>
                                     <div className={styles.previewName}>{formatTime(timer)} Duration</div>
                                     <div className={styles.previewSize}>{(recordedBlob!.size / (1024 * 1024)).toFixed(2)} MB • Audio Capture</div>
+                                    {transcriptResult && (
+                                        <div className={styles.transcriptBadge}>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            Transcribed · {transcriptResult.language?.toUpperCase() ?? 'AUTO'}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
+                            {/* File name input */}
                             <div className={styles.inputGroup}>
                                 <label className={styles.inputLabel}>File Name</label>
-                                <input 
-                                    type="text" 
-                                    className={styles.fileNameInput} 
+                                <input
+                                    type="text"
+                                    className={styles.fileNameInput}
                                     value={recordingName}
                                     onChange={(e) => setRecordingName(e.target.value)}
                                     placeholder="Enter file name..."
                                 />
                             </div>
 
+                            {/* Transcript result panel */}
+                            {transcriptResult && (
+                                <div className={styles.transcriptPanel}>
+                                    <div className={styles.transcriptPanelHeader}>
+                                        <div className={styles.transcriptPanelTitle}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                            Transcript
+                                        </div>
+                                        <button className={styles.transcriptDownloadBtn} onClick={handleDownloadTranscript}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                            .txt
+                                        </button>
+                                    </div>
+                                    <div className={styles.transcriptText}>
+                                        {transcriptResult.text}
+                                    </div>
+                                    {transcriptResult.segments.length > 0 && (
+                                        <details className={styles.segmentsDetails}>
+                                            <summary className={styles.segmentsSummary}>Timestamped segments ({transcriptResult.segments.length})</summary>
+                                            <div className={styles.segmentsList}>
+                                                {transcriptResult.segments.map(seg => (
+                                                    <div key={seg.id} className={styles.segmentItem}>
+                                                        <span className={styles.segmentTime}>
+                                                            {seg.start.toFixed(1)}s – {seg.end.toFixed(1)}s
+                                                        </span>
+                                                        <span className={styles.segmentText}>{seg.text}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </details>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Error */}
+                            {transcriptError && (
+                                <div className={styles.transcriptError}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                    {transcriptError}
+                                </div>
+                            )}
+
+                            {/* Action buttons */}
                             <div className={styles.saveActions}>
                                 <button className={styles.btnSecondary} onClick={handleCloseSaveModal}>Discard</button>
+                                <button
+                                    className={styles.btnWhisper}
+                                    onClick={handleTranscribe}
+                                    disabled={isTranscribing}
+                                >
+                                    {isTranscribing ? (
+                                        <><span className={styles.spinner}></span> Transcribing…</>
+                                    ) : (
+                                        <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg> Transcribe (Whisper)</>
+                                    )}
+                                </button>
                                 <button className={styles.btnPrimary} onClick={handleDownloadMP3}>
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                    Save as MP3
+                                    Save MP3
                                 </button>
                             </div>
                         </div>

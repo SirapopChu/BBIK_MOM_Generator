@@ -1197,3 +1197,166 @@
 }
 
 .segmentRed { background-color: #ef4444; }
+
+/* ── Whisper button ─────────────────────────────────────── */
+.btnWhisper {
+    flex: 2;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    font-weight: 600;
+    padding: 1rem;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+}
+
+.btnWhisper:hover:not(:disabled) {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btnWhisper:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.transcriptBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    background: #d1fae5;
+    color: #065f46;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.transcriptPanel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.transcriptPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: white;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.transcriptPanelTitle {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.transcriptDownloadBtn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6366f1;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.transcriptDownloadBtn:hover { background: #dbeafe; }
+
+.transcriptText {
+    padding: 1rem;
+    font-size: 0.875rem;
+    color: #334155;
+    line-height: 1.7;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+}
+
+.segmentsDetails { border-top: 1px solid #f1f5f9; }
+
+.segmentsSummary {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    user-select: none;
+    background: white;
+}
+
+.segmentsSummary:hover { background: #f8fafc; }
+
+.segmentsList {
+    padding: 0.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.segmentItem {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    align-items: flex-start;
+}
+
+.segmentTime {
+    flex-shrink: 0;
+    font-weight: 600;
+    color: #6366f1;
+    min-width: 90px;
+    padding-top: 1px;
+}
+
+.segmentText { color: #334155; line-height: 1.5; }
+
+.transcriptError {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    color: #b91c1c;
+    margin-bottom: 1.5rem;
+    line-height: 1.4;
+}
+
+.saveModal {
+    max-height: 90vh;
+    overflow-y: auto;
+}
