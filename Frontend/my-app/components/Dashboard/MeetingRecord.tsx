@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import styles from './MeetingRecord.module.css';
 import ProcessingView from './ProcessingView';
 
@@ -13,11 +15,14 @@ const MeetingRecord = () => {
     const [timer, setTimer] = useState(0);
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
-    const [uploadedAudioFiles, setUploadedAudioFiles] = useState<{name: string, size: string}[]>([]);
+    const [uploadedAudioFiles, setUploadedAudioFiles] = useState<File[]>([]);
     // Store actual File objects so we can read their content later
     const [uploadedTranscribeFiles, setUploadedTranscribeFiles] = useState<File[]>([]);
     const audioFileInputRef = useRef<HTMLInputElement>(null);
     const transcribeFileInputRef = useRef<HTMLInputElement>(null);
+    const ffmpegRef = useRef(new FFmpeg());
+    const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+    const [compressionProgress, setCompressionProgress] = useState<string | null>(null);
 
     const waveContainerRef = useRef<HTMLDivElement>(null);
     const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -34,6 +39,7 @@ const MeetingRecord = () => {
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [transcriptResult, setTranscriptResult] = useState<{ text: string; language: string | null; duration: number | null; segments: { id: number; start: number; end: number; text: string }[] } | null>(null);
     const [transcriptError, setTranscriptError] = useState<string | null>(null);
+    const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
     // Format timer to HH:MM:SS
     const formatTime = (seconds: number) => {
@@ -41,6 +47,55 @@ const MeetingRecord = () => {
         const m = Math.floor((seconds % 3600) / 60);
         const s = seconds % 60;
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    // Load FFmpeg core
+    const loadFFmpeg = async () => {
+        const ffmpeg = ffmpegRef.current;
+        if (ffmpeg.loaded) return;
+
+        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+        try {
+            await ffmpeg.load({
+                coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+                wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+            });
+            setFfmpegLoaded(true);
+        } catch (err) {
+            console.error('Failed to load FFmpeg:', err);
+        }
+    };
+
+    const compressAudioFile = async (file: File | Blob, name: string): Promise<Blob> => {
+        const ffmpeg = ffmpegRef.current;
+        if (!ffmpeg.loaded) {
+            setCompressionProgress('Loading engine...');
+            await loadFFmpeg();
+        }
+
+        const inputName = `input_${Date.now()}_${name}`;
+        const outputName = `output_${Date.now()}.mp3`;
+
+        setCompressionProgress('Compressing...');
+        
+        ffmpeg.on('progress', ({ progress }) => {
+            setCompressionProgress(`Compressing: ${Math.round(progress * 100)}%`);
+        });
+
+        await ffmpeg.writeFile(inputName, await fetchFile(file));
+        // Recode to 64k Mono MP3 - very efficient for speech
+        await ffmpeg.exec(['-i', inputName, '-b:a', '64k', '-ac', '1', outputName]);
+        
+        const data = await ffmpeg.readFile(outputName);
+        
+        // Cleanup virtual file system
+        try {
+            await ffmpeg.deleteFile(inputName);
+            await ffmpeg.deleteFile(outputName);
+        } catch (e) {}
+
+        setCompressionProgress(null);
+        return new Blob([(data as any).buffer], { type: 'audio/mp3' });
     };
 
     // Unified cleanup function
@@ -285,19 +340,31 @@ const MeetingRecord = () => {
     };
 
     // ── Transcribe with OpenAI Whisper via backend ──────────────
-    const handleTranscribe = async () => {
-        if (!recordedBlob) return;
+    const handleTranscribe = async (blobToTranscribe?: Blob) => {
+        const targetBlob = blobToTranscribe || recordedBlob;
+        if (!targetBlob) return;
+        
         setIsTranscribing(true);
         setTranscriptResult(null);
         setTranscriptError(null);
 
         try {
+            let audioBlob = targetBlob;
+            
+            // Auto-compress if > 15MB 
+            if (targetBlob.size > 15 * 1024 * 1024) {
+                 audioBlob = await compressAudioFile(targetBlob, recordingName);
+            }
+
             const formData = new FormData();
-            // Use webm extension so the backend/Whisper knows the format
-            const ext = recordedBlob.type.includes('mp4') ? 'mp4'
-                      : recordedBlob.type.includes('wav') ? 'wav'
+            // Use mp3 if compressed, else original
+            const isMp3 = audioBlob.type === 'audio/mp3';
+            const ext = isMp3 ? 'mp3' 
+                      : audioBlob.type.includes('mp4') ? 'mp4'
+                      : audioBlob.type.includes('wav') ? 'wav'
                       : 'webm';
-            formData.append('audio', recordedBlob, `recording.${ext}`);
+            
+            formData.append('audio', audioBlob, `recording.${ext}`);
             formData.append('language', 'th'); // hint Thai; change to '' for auto-detect
 
             const res = await fetch('http://localhost:3001/api/transcribe', {
@@ -316,6 +383,43 @@ const MeetingRecord = () => {
             setTranscriptError(err.message || 'Unknown error');
         } finally {
             setIsTranscribing(false);
+            setCompressionProgress(null);
+        }
+    };
+
+    const handleTranscribeUploadedAudio = async (file: File) => {
+        setIsProcessing(true);
+        setActiveTaskId(null); // Reset
+        
+        try {
+            // STEP 1: Compression (if needed)
+            let audioBlob: Blob = file;
+            if (file.size > 22 * 1024 * 1024) {
+                audioBlob = await compressAudioFile(file, file.name);
+            }
+
+            // STEP 2: Call the Full Automation Endpoint
+            const formData = new FormData();
+            formData.append('audio', audioBlob, file.name);
+            formData.append('language', 'th');
+
+            const res = await fetch('http://localhost:3001/api/minutes/process-audio', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || `Server error ${res.status}`);
+            }
+
+            const data = await res.json();
+            if (data.taskId) {
+                setActiveTaskId(data.taskId);
+            }
+        } catch (err: any) {
+            alert(`Automation failed: ${err.message}`);
+            setIsProcessing(false);
         }
     };
 
@@ -339,11 +443,7 @@ const MeetingRecord = () => {
     const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
-            const newFiles = Array.from(files).map(file => ({
-                name: file.name,
-                size: (file.size / (1024 * 1024)).toFixed(2) + ' MB'
-            }));
-            setUploadedAudioFiles(prev => [...prev, ...newFiles]);
+            setUploadedAudioFiles(prev => [...prev, ...Array.from(files)]);
         }
     };
 
@@ -403,10 +503,7 @@ const MeetingRecord = () => {
             const files = Array.from(e.dataTransfer.files);
             const audioFiles = files.filter(f => /\.(mp3|wav|m4a|webm)$/i.test(f.name));
             if (audioFiles.length > 0) {
-                setUploadedAudioFiles(prev => [...prev, ...audioFiles.map(file => ({
-                    name: file.name,
-                    size: (file.size / (1024 * 1024)).toFixed(2) + ' MB'
-                }))]);
+                setUploadedAudioFiles(prev => [...prev, ...audioFiles]);
             } else {
                 alert('Please upload audio files (.mp3, .wav, .m4a, .webm)');
             }
@@ -488,7 +585,15 @@ const MeetingRecord = () => {
 
     return (
         <>
-            {isProcessing && <ProcessingView onClose={() => setIsProcessing(false)} />}
+            {isProcessing && (
+                <ProcessingView 
+                    taskId={activeTaskId || ''} 
+                    onClose={() => {
+                        setIsProcessing(false);
+                        setActiveTaskId(null);
+                    }} 
+                />
+            )}
             
             {/* ==== RECORDING MODE ==== */}
             {isRecording && (
@@ -761,16 +866,36 @@ const MeetingRecord = () => {
                                     <div className={styles.uploadIcon} style={{ width: '36px', height: '36px', marginBottom: '0.5rem' }}>
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                                     </div>
-                                    <p className={styles.uploadText}>
-                                        {uploadedAudioFiles.length > 0 
-                                            ? uploadedAudioFiles.map(f => f.name).join(', ') 
-                                            : 'Click or drag audio'}
-                                    </p>
-                                    {uploadedAudioFiles.length > 0 && (
-                                        <button className={styles.clearUploadBtn} onClick={clearAudioFiles} title="Clear files">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                        </button>
-                                    )}
+                                    <div className={styles.uploadAreaFiles}>
+                                        {uploadedAudioFiles.length > 0 ? (
+                                            uploadedAudioFiles.map((file, idx) => (
+                                                <div key={idx} className={styles.uploadedFileRow}>
+                                                    <div className={styles.uploadedFileInfo}>
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                                                        <span className={styles.uploadedFileName}>{file.name}</span>
+                                                        <span className={styles.uploadedFileSize}>({(file.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                                                    </div>
+                                                    <div className={styles.uploadedFileActions}>
+                                                        <button 
+                                                            className={styles.transcribeFileBtn} 
+                                                            onClick={(e) => { e.stopPropagation(); handleTranscribeUploadedAudio(file); }}
+                                                            disabled={isTranscribing}
+                                                        >
+                                                            Transcribe
+                                                        </button>
+                                                        <button 
+                                                            className={styles.removeFileBtn} 
+                                                            onClick={(e) => { e.stopPropagation(); removeAudioFile(idx); }}
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            'Click or drag audio'
+                                        )}
+                                    </div>
                                 </div>
 
                             </div>
@@ -902,6 +1027,14 @@ const MeetingRecord = () => {
                                 </div>
                             )}
 
+                             {/* Compression Progress */}
+                            {compressionProgress && (
+                                <div className={styles.compressionStatus}>
+                                    <div className={styles.pulseDot}></div>
+                                    {compressionProgress}
+                                </div>
+                            )}
+
                             {/* Error */}
                             {transcriptError && (
                                 <div className={styles.transcriptError}>
@@ -913,9 +1046,9 @@ const MeetingRecord = () => {
                             {/* Action buttons */}
                             <div className={styles.saveActions}>
                                 <button className={styles.btnSecondary} onClick={handleCloseSaveModal}>Discard</button>
-                                <button
+                                 <button
                                     className={styles.btnWhisper}
-                                    onClick={handleTranscribe}
+                                    onClick={() => handleTranscribe()}
                                     disabled={isTranscribing}
                                 >
                                     {isTranscribing ? (

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { generateMinutesText } from '../services/llm.service.js';
 import { buildDocxBuffer } from '../services/docx.service.js';
+import { transcribeAudio } from '../services/transcription.service.js';
 import * as taskService from '../services/task.service.js';
 
 const router  = Router();
@@ -89,8 +90,9 @@ router.post('/export-docx', upload.single('transcript'), async (req, res) => {
         taskService.updateTask(taskId, { currentStep: 'export' });
         taskService.updateTask(taskId, { status: 'completed', progress: 100 });
 
+        const encodedFilename = encodeURIComponent(outputName);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        res.setHeader('Content-Disposition', `attachment; filename="${outputName}"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${encodedFilename}"; filename*=UTF-8''${encodedFilename}`);
         res.send(buffer);
     } catch (err) {
         console.error('[POST /export-docx]', err.message);
@@ -100,6 +102,77 @@ router.post('/export-docx', upload.single('transcript'), async (req, res) => {
         }
         res.status(500).json({ error: err.message });
     }
+});
+
+/**
+ * POST /api/minutes/process-audio
+ * One-click full workflow: Transcribe -> Analyze -> DOCX
+ */
+router.post('/process-audio', upload.single('audio'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Audio file is required.' });
+
+    const filename = req.file.originalname || 'meeting_audio';
+    const baseTitle = filename.replace(/\.(mp3|wav|m4a|webm)$/i, '');
+    const language = (req.body.language || '').trim();
+
+    // 1. Create Task
+    const taskId = taskService.createTask(baseTitle, 'full_workflow');
+    
+    // 2. Respond immediately with taskId
+    res.json({ taskId });
+
+    // 3. Process in background
+    (async () => {
+        try {
+            const checkCancelled = () => {
+                const updatedTask = taskService.getTaskById(taskId);
+                if (updatedTask?.status === 'cancelled') {
+                    throw new Error('Task cancelled by user');
+                }
+            };
+
+            // STEP 1: Transcribe
+            checkCancelled();
+            taskService.updateTask(taskId, { currentStep: 'transcribe', progress: 10 });
+            taskService.addLog(taskId, `Starting transcription for ${filename}...`);
+            
+            const transcriptResult = await transcribeAudio(req.file.buffer, req.file.mimetype, filename, language);
+            
+            checkCancelled();
+            taskService.addLog(taskId, `Transcription complete. Detected language: ${transcriptResult.language}`);
+            
+            // STEP 2: Analyze with Claude
+            checkCancelled();
+            taskService.updateTask(taskId, { currentStep: 'analyze', progress: 40 });
+            taskService.addLog(taskId, 'Sending transcript to Claude AI for minute generation...');
+            
+            const { result } = await generateMinutesText(transcriptResult.text);
+            
+            checkCancelled();
+            taskService.addLog(taskId, 'Claude analysis complete.');
+
+            // STEP 3: Build DOCX
+            checkCancelled();
+            taskService.updateTask(taskId, { currentStep: 'format', progress: 75 });
+            taskService.addLog(taskId, 'Formatting and building DOCX document...');
+
+            const buffer = await buildDocxBuffer(result);
+
+            checkCancelled();
+            // FINISH
+            taskService.updateTask(taskId, { 
+                status: 'completed', 
+                progress: 100, 
+                currentStep: 'ready' 
+            }, buffer);
+            taskService.addLog(taskId, 'Process completed! Document is ready for download.');
+
+        } catch (err) {
+            console.error(`[Background Task ${taskId}]`, err);
+            taskService.updateTask(taskId, { status: 'failed', error: err.message });
+            taskService.addLog(taskId, `ERROR: ${err.message}`);
+        }
+    })();
 });
 
 export default router;

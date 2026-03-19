@@ -16,7 +16,7 @@ export const config = {
         allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(','),
     },
     paths: {
-        logo: process.env.LOGO_PATH || './assets/Bluebik_Logo_2025_Horizontal_Primary_Logo_Black.png',
+        logo: process.env.LOGO_PATH || './assets/bluebik-docx.png',
     },
 };
 

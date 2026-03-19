@@ -1400,3 +1400,128 @@
     max-height: 90vh;
     overflow-y: auto;
 }
+
+/* Audio Upload & Compression Styles */
+.uploadAreaFiles {
+    width: 100%;
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.uploadedFileRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    transition: all 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.uploadedFileRow:hover {
+    border-color: #6366f1;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);
+}
+
+.uploadedFileInfo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.uploadedFileName {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.uploadedFileSize {
+    font-size: 0.6875rem;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.uploadedFileActions {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.transcribeFileBtn {
+    padding: 0.25rem 0.625rem;
+    background: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.transcribeFileBtn:hover {
+    background: #4f46e5;
+}
+
+.transcribeFileBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.removeFileBtn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    color: #94a3b8;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.removeFileBtn:hover {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+.compressionStatus {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: #faf5ff;
+    border: 1px solid #e9d5ff;
+    border-radius: 12px;
+    color: #7e22ce;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.pulseDot {
+    width: 8px;
+    height: 8px;
+    background-color: #a855f7;
+    border-radius: 50%;
+    animation: pulseDot 1.5s infinite;
+}
+
+@keyframes pulseDot {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+}

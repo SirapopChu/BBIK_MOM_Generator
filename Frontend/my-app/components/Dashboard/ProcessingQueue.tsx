@@ -17,7 +17,7 @@ interface Task {
     id: string;
     title: string;
     type: string;
-    status: 'processing' | 'completed' | 'failed' | 'queued';
+    status: 'processing' | 'completed' | 'failed' | 'queued' | 'cancelled';
     currentStep: string;
     progress: number;
     timestamp: string;
@@ -62,6 +62,55 @@ const ProcessingQueue = () => {
         }
     };
 
+    const handleCancelTask = async (taskId: string) => {
+        if (!confirm('Are you sure you want to cancel this task?')) return;
+        try {
+            await fetch(`${API_BASE}/tasks/${taskId}/cancel`, { method: 'POST' });
+            fetchTasks();
+        } catch (err) {
+            console.error('[CancelTask]', err);
+        }
+    };
+
+    const handleDeleteTask = async (taskId: string) => {
+        if (!confirm('Remove this task from history?')) return;
+        try {
+            await fetch(`${API_BASE}/tasks/${taskId}`, { method: 'DELETE' });
+            if (selectedTaskId === taskId) setSelectedTaskId(null);
+            fetchTasks();
+        } catch (err) {
+            console.error('[DeleteTask]', err);
+        }
+    };
+
+    const handleClearHistory = async () => {
+        if (!confirm('Clear all completed/failed tasks from history?')) return;
+        try {
+            await fetch(`${API_BASE}/tasks`, { method: 'DELETE' });
+            fetchTasks();
+        } catch (err) {
+            console.error('[ClearHistory]', err);
+        }
+    };
+
+    const handleDownload = async (task: Task) => {
+        try {
+            const res = await fetch(`${API_BASE}/tasks/${task.id}/download`);
+            if (!res.ok) throw new Error('Download failed');
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${task.title.replace(/\s+/g, '_')}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (err) {
+            alert('Download failed. Result might have been cleared.');
+        }
+    };
+
     // Initial load and polling for tasks
     useEffect(() => {
         fetchTasks();
@@ -77,8 +126,8 @@ const ProcessingQueue = () => {
         return () => clearInterval(logInterval);
     }, [selectedTaskId]);
 
-    const activeTask = tasks.find(t => t.id === selectedTaskId) || tasks[0];
-    const historyTasks = tasks.filter(t => t.status === 'completed' || t.status === 'failed');
+    const activeTask = tasks.find(t => t.id === selectedTaskId) || (tasks.length > 0 ? tasks[0] : null);
+    const historyTasks = tasks.filter(t => t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled');
     const runningTasks = tasks.filter(t => t.status === 'processing' || t.status === 'queued');
 
     if (loading && tasks.length === 0) {
@@ -88,8 +137,16 @@ const ProcessingQueue = () => {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h1 className={styles.welcomeText}>Processing Queue</h1>
-                <p className={styles.subtitle}>Real-time status of AI meeting generation and historical logs.</p>
+                <div>
+                    <h1 className={styles.welcomeText}>Processing Queue</h1>
+                    <p className={styles.subtitle}>Real-time status of AI meeting generation and historical logs.</p>
+                </div>
+                {historyTasks.length > 0 && (
+                    <button className={styles.clearHistoryBtn} onClick={handleClearHistory}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                        Clear History
+                    </button>
+                )}
             </div>
 
             <div className={styles.mainGrid}>
@@ -159,16 +216,25 @@ const ProcessingQueue = () => {
                                                 {task.status.toUpperCase()} • {new Date(task.timestamp).toLocaleTimeString()}
                                             </div>
                                         </div>
-                                        <div className={styles.progressRingWrapper}>
-                                            <div className={styles.progressValue}>{task.progress}%</div>
-                                            <svg className={styles.progressRing} width="40" height="40">
-                                                <circle className={styles.progressRingBg} cx="20" cy="20" r="16" />
-                                                <circle 
-                                                    className={styles.progressRingFill} 
-                                                    cx="20" cy="20" r="16" 
-                                                    style={{ strokeDashoffset: 100 - (task.progress || 0) }}
-                                                />
-                                            </svg>
+                                        <div className={styles.queueItemRow}>
+                                            <div className={styles.progressRingWrapper}>
+                                                <div className={styles.progressValue}>{task.progress}%</div>
+                                                <svg className={styles.progressRing} width="40" height="40">
+                                                    <circle className={styles.progressRingBg} cx="20" cy="20" r="16" />
+                                                    <circle 
+                                                        className={styles.progressRingFill} 
+                                                        cx="20" cy="20" r="16" 
+                                                        style={{ strokeDashoffset: 100 - (task.progress || 0) }}
+                                                    />
+                                                </svg>
+                                            </div>
+                                            <button 
+                                                className={styles.cancelBtn} 
+                                                onClick={(e) => { e.stopPropagation(); handleCancelTask(task.id); }}
+                                                title="Cancel Task"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                            </button>
                                         </div>
                                     </div>
                                 ))
@@ -227,16 +293,24 @@ const ProcessingQueue = () => {
                                             <div className={styles.historyTitle}>{item.title}</div>
                                             <div className={styles.historyMeta}>
                                                 {new Date(item.timestamp).toLocaleDateString()}
-                                                <span style={{ color: item.status === 'completed' ? '#10b981' : '#f43f5e', marginLeft: '0.5rem' }}>
+                                                <span style={{ 
+                                                    color: item.status === 'completed' ? '#10b981' : item.status === 'cancelled' ? '#94a3b8' : '#f43f5e', 
+                                                    marginLeft: '0.5rem' 
+                                                }}>
                                                     • {item.status.toUpperCase()}
                                                 </span>
                                             </div>
                                         </div>
-                                        {item.status === 'completed' && (
-                                            <button className={styles.downloadIconBtn}>
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                        <div className={styles.historyActions}>
+                                            {item.status === 'completed' && (
+                                                <button className={styles.downloadIconBtn} onClick={(e) => { e.stopPropagation(); handleDownload(item); }}>
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                                </button>
+                                            )}
+                                            <button className={styles.deleteIconBtn} onClick={(e) => { e.stopPropagation(); handleDeleteTask(item.id); }}>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                                             </button>
-                                        )}
+                                        </div>
                                     </div>
                                 ))
                             )}

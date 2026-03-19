@@ -28,4 +28,40 @@ router.get('/:id', (req, res) => {
     res.json({ task });
 });
 
+// GET /api/tasks/:id/download - Download specific result of a task
+router.get('/:id/download', (req, res) => {
+    const taskId = req.params.id;
+    const task = taskService.getTaskById(taskId);
+    const result = taskService.getTaskResult(taskId);
+
+    if (!task || !result) {
+        return res.status(404).json({ error: 'Result not found or task not finished' });
+    }
+
+    const filename = task.title ? `${task.title.replace(/\s+/g, '_')}.docx` : 'meeting_minutes.docx';
+    const encodedFilename = encodeURIComponent(filename);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodedFilename}"; filename*=UTF-8''${encodedFilename}`);
+    res.send(result);
+});
+
+// POST /api/tasks/:id/cancel
+router.post('/:id/cancel', (req, res) => {
+    taskService.cancelTask(req.params.id);
+    res.json({ success: true });
+});
+
+// DELETE /api/tasks/:id
+router.delete('/:id', (req, res) => {
+    taskService.deleteTask(req.params.id);
+    res.json({ success: true });
+});
+
+// DELETE /api/tasks - Clear history
+router.delete('/', (req, res) => {
+    taskService.clearHistory();
+    res.json({ success: true });
+});
+
 export default router;

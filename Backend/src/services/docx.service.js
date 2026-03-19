@@ -3,24 +3,25 @@ import {
     TextRun, AlignmentType, WidthType, BorderStyle, ShadingType, ImageRun, Header,
 } from 'docx';
 import fs from 'fs';
+import path from 'path';
 import { config } from '../config/index.js';
 
 // ── Constants ────────────────────────────────────────────────
-const FONT      = 'TH Sarabun New';
+const FONT = 'TH Sarabun New';
 const FONT_SIZE = 10;
-const FULL_CM   = 17;
+const FULL_CM = 17;
 
 // ── Unit helpers ─────────────────────────────────────────────
-const cmToTwips = (cm)  => Math.round(cm * 567);
+const cmToTwips = (cm) => Math.round(cm * 567);
 const ptToHalfPt = (pt) => pt * 2;
 
 // ── Border factory ───────────────────────────────────────────
 function makeBorders() {
     return {
-        top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },
-        left:   { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+        top: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+        left: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
         bottom: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
-        right:  { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+        right: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
     };
 }
 
@@ -36,10 +37,10 @@ function makeParagraph(text, bold = true, size = null, spacing = 40) {
 function makeCell(text, bold = true, bg = null, size = null, width = null) {
     const opts = {
         children: [makeParagraph(text, bold, size)],
-        borders:  makeBorders(),
+        borders: makeBorders(),
     };
-    if (bg)    opts.shading = { type: ShadingType.CLEAR, color: 'auto', fill: bg };
-    if (width) opts.width   = { size: cmToTwips(width), type: WidthType.DXA };
+    if (bg) opts.shading = { type: ShadingType.CLEAR, color: 'auto', fill: bg };
+    if (width) opts.width = { size: cmToTwips(width), type: WidthType.DXA };
     return new TableCell(opts);
 }
 
@@ -55,9 +56,9 @@ function extractInfo(result, field) {
 }
 
 function extractSection(result, startMarker, endMarker) {
-    const lines  = result.split('\n');
+    const lines = result.split('\n');
     const output = [];
-    let active   = false;
+    let active = false;
     for (const line of lines) {
         if (line.includes(startMarker)) { active = true; continue; }
         if (active && (endMarker ? line.includes(endMarker) : line.startsWith('---'))) break;
@@ -68,10 +69,10 @@ function extractSection(result, startMarker, endMarker) {
 
 // ── Build the DOCX buffer from LLM result ────────────────────
 export async function buildDocxBuffer(result, metadata = null) {
-    const meetingName  = metadata?.title || extractInfo(result, 'Meeting Name');
-    const meetingDate  = metadata?.date  || extractInfo(result, 'Date');
-    const location     = metadata?.bu    || extractInfo(result, 'Location');
-    const duration     = metadata?.startTime ? `${metadata.startTime} onwards` : extractInfo(result, 'Duration');
+    const meetingName = metadata?.title || extractInfo(result, 'Meeting Name');
+    const meetingDate = metadata?.date || extractInfo(result, 'Date');
+    const location = metadata?.bu || extractInfo(result, 'Location');
+    const duration = metadata?.startTime ? `${metadata.startTime} onwards` : extractInfo(result, 'Duration');
     const participants = metadata?.participants?.join(', ') || extractInfo(result, 'Participants');
 
     const agendaLines = extractSection(result, '---AGENDA_TABLE---', '---DISCUSSION---')
@@ -84,13 +85,20 @@ export async function buildDocxBuffer(result, metadata = null) {
         .join('  |  ');
 
     // ── Header: logo ─────────────────────────────────────────
-    let headerChildren;
-    if (fs.existsSync(config.paths.logo)) {
-        const logoData = fs.readFileSync(config.paths.logo);
+    let headerChildren = [];
+    const LOGO_PATH = path.resolve(process.cwd(), config.paths.logo);
+
+    if (fs.existsSync(LOGO_PATH)) {
+        const logoData = fs.readFileSync(LOGO_PATH);
         headerChildren = [
             new Paragraph({
                 alignment: AlignmentType.RIGHT,
-                children:  [new ImageRun({ data: logoData, transformation: { width: 108, height: 42 } })],
+                children: [
+                    new ImageRun({
+                        data: logoData,
+                        transformation: { width: 101, height: 26 },
+                    }),
+                ],
             }),
         ];
     } else {
@@ -104,9 +112,9 @@ export async function buildDocxBuffer(result, metadata = null) {
         return new TableRow({
             children: [
                 makeCell(l1, true, 'D9D9D9', null, COL_W[0]),
-                makeCell(v1, true, null,     null, COL_W[1]),
+                makeCell(v1, true, null, null, COL_W[1]),
                 makeCell(l2, true, 'D9D9D9', null, COL_W[2]),
-                makeCell(v2, true, null,     null, COL_W[3]),
+                makeCell(v2, true, null, null, COL_W[3]),
             ],
         });
     }
@@ -116,7 +124,7 @@ export async function buildDocxBuffer(result, metadata = null) {
             makeCell(label, true, 'D9D9D9', null, COL_W[0]),
             new TableCell({
                 children: [makeParagraph(value, true)],
-                borders:  makeBorders(),
+                borders: makeBorders(),
                 columnSpan: 3,
             }),
         ],
@@ -125,9 +133,9 @@ export async function buildDocxBuffer(result, metadata = null) {
     const table1 = new Table({
         rows: [
             makeInfoRow('การประชุม', meetingName, 'วันที่ประชุม', meetingDate),
-            makeInfoRow('สถานที่',   location,    'ระยะเวลา',     duration),
+            makeInfoRow('สถานที่', location, 'ระยะเวลา', duration),
             mergedRow('ผู้เข้าร่วมการประชุม', participants),
-            mergedRow('วาระการประชุม',        agendaSummary),
+            mergedRow('วาระการประชุม', agendaSummary),
         ],
         width: { size: cmToTwips(FULL_CM), type: WidthType.DXA },
     });
@@ -138,8 +146,8 @@ export async function buildDocxBuffer(result, metadata = null) {
             children: [
                 new TableCell({
                     children: [makeParagraph('ประเด็นที่หารือในที่ประชุม', true)],
-                    borders:  makeBorders(),
-                    shading:  { type: ShadingType.CLEAR, color: 'auto', fill: 'D9D9D9' },
+                    borders: makeBorders(),
+                    shading: { type: ShadingType.CLEAR, color: 'auto', fill: 'D9D9D9' },
                 }),
             ],
         }),
@@ -156,8 +164,8 @@ export async function buildDocxBuffer(result, metadata = null) {
                 children: [
                     new TableCell({
                         children: currentCell.children,
-                        borders:  makeBorders(),
-                        shading:  currentCell.bg
+                        borders: makeBorders(),
+                        shading: currentCell.bg
                             ? { type: ShadingType.CLEAR, color: 'auto', fill: currentCell.bg }
                             : undefined,
                     }),
@@ -181,7 +189,7 @@ export async function buildDocxBuffer(result, metadata = null) {
         const s = line.trim();
         if (!s) continue;
 
-        if (s.includes('[ACTION]'))  { inAction = true; actionBuf = []; continue; }
+        if (s.includes('[ACTION]')) { inAction = true; actionBuf = []; continue; }
         if (s.includes('[/ACTION]')) {
             inAction = false;
             if (actionBuf.length > 0) {
@@ -193,15 +201,15 @@ export async function buildDocxBuffer(result, metadata = null) {
         }
         if (inAction) { actionBuf.push(s); continue; }
 
-        if      (s.startsWith('## '))  startCell(s.slice(3), true, 'EBF3FB');
+        if (s.startsWith('## ')) startCell(s.slice(3), true, 'EBF3FB');
         else if (s.startsWith('### ')) startCell(s.slice(4), true, 'F5F5F5');
-        else if (s.startsWith('- '))   addToCell(`• ${s.slice(2)}`, false);
-        else                           addToCell(s, s.startsWith('ข้อสรุป') || s.startsWith('Meeting Conclusions'));
+        else if (s.startsWith('- ')) addToCell(`• ${s.slice(2)}`, false);
+        else addToCell(s, s.startsWith('ข้อสรุป') || s.startsWith('Meeting Conclusions'));
     }
     flushCell();
 
     const table2 = new Table({
-        rows:  discussionRows,
+        rows: discussionRows,
         width: { size: cmToTwips(FULL_CM), type: WidthType.DXA },
     });
 
@@ -210,7 +218,7 @@ export async function buildDocxBuffer(result, metadata = null) {
         sections: [{
             properties: {
                 page: {
-                    size:   { width: cmToTwips(21), height: cmToTwips(29.7) },
+                    size: { width: cmToTwips(21), height: cmToTwips(29.7) },
                     margin: { top: cmToTwips(2), right: cmToTwips(2), bottom: cmToTwips(2), left: cmToTwips(2) },
                 },
             },
@@ -218,8 +226,8 @@ export async function buildDocxBuffer(result, metadata = null) {
             children: [
                 new Paragraph({
                     alignment: AlignmentType.CENTER,
-                    spacing:   { after: 120 },
-                    children:  [makeTextRun(`เอกสารสรุปการประชุม — ${meetingName}`, true, 14)],
+                    spacing: { after: 120 },
+                    children: [makeTextRun(`เอกสารสรุปการประชุม — ${meetingName}`, true, 14)],
                 }),
                 table1,
                 new Paragraph({ spacing: { after: 80 } }),
@@ -227,11 +235,11 @@ export async function buildDocxBuffer(result, metadata = null) {
                 new Paragraph({ spacing: { after: 80 } }),
                 new Paragraph({
                     alignment: AlignmentType.CENTER,
-                    children:  [makeTextRun('--- ปิดการประชุม / Meeting Adjourned ---', true, 10)],
+                    children: [makeTextRun('--- ปิดการประชุม / Meeting Adjourned ---', true, 10)],
                 }),
                 new Paragraph({
                     alignment: AlignmentType.CENTER,
-                    children:  [makeTextRun('บันทึกโดย: PMO Analyst | จัดทำจาก Meeting Transcript', false, 9)],
+                    children: [makeTextRun('บันทึกโดย: PMO Analyst | จัดทำจาก Meeting Transcript', false, 9)],
                 }),
             ],
         }],
