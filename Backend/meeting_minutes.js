@@ -210,7 +210,7 @@ async function main() {
                 children: [
                     new ImageRun({
                         data: logoData,
-                        transformation: { width: 108, height: 42 }, // ~1.13 x 0.44 inches in pt (approx)
+                        transformation: { width: 101, height: 26 }, // ~1.13 x 0.44 inches in pt (approx)
                     }),
                 ],
             }),
