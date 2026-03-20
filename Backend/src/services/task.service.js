@@ -4,7 +4,7 @@
  */
 
 const tasks = [];
-const logs  = new Map();
+const logs = new Map();
 const results = new Map(); // Store generated buffers/data
 
 // Helper to keep history limited

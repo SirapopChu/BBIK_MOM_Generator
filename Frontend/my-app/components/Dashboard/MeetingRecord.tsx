@@ -83,8 +83,8 @@ const MeetingRecord = () => {
         });
 
         await ffmpeg.writeFile(inputName, await fetchFile(file));
-        // Recode to 64k Mono MP3 - very efficient for speech
-        await ffmpeg.exec(['-i', inputName, '-b:a', '64k', '-ac', '1', outputName]);
+        // Recode to 32k Mono MP3 - even more efficient for speech to stay under 25MB
+        await ffmpeg.exec(['-i', inputName, '-b:a', '32k', '-ac', '1', outputName]);
         
         const data = await ffmpeg.readFile(outputName);
         

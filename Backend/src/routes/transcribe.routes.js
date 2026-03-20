@@ -4,10 +4,10 @@ import { transcribeAudio } from '../services/transcription.service.js';
 
 const router = Router();
 
-// Accept files up to 24 MB (Whisper API limit is 25 MB)
+// Accept files up to 50 MB (OpenAI Whisper limit is 25 MB, but we allow more in backend for future-proofing or error handling)
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits:  { fileSize: 24 * 1024 * 1024 },
+    limits:  { fileSize: 50 * 1024 * 1024 },
 });
 
 /**

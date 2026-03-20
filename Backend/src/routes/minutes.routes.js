@@ -6,7 +6,10 @@ import { transcribeAudio } from '../services/transcription.service.js';
 import * as taskService from '../services/task.service.js';
 
 const router  = Router();
-const upload  = multer({ storage: multer.memoryStorage() });
+const upload  = multer({ 
+    storage: multer.memoryStorage(),
+    limits:  { fileSize: 50 * 1024 * 1024 }
+});
 
 /**
  * POST /api/minutes/generate
