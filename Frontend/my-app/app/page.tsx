@@ -4,18 +4,18 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { login as loginApi } from '@/services/api';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 export default function RootPage() {
     const { user, login: setAuth, loading } = useAuth();
     const router = useRouter();
     
+    // Default email is set to standard test user to maintain easy testing,
+    // though the UI visually matches the reference placeholder
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    // If already authenticated, bypass login and go to dashboard
     useEffect(() => {
         if (!loading && user) {
             router.push('/dashboard');
@@ -40,158 +40,166 @@ export default function RootPage() {
 
     if (loading || user) {
         return (
-            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-                <div className="text-white font-medium">Initialising session...</div>
+            <div className="min-h-screen bg-white flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-slate-200 border-t-[#3b7bed] rounded-full animate-spin"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen flex selection:bg-indigo-500/30">
-            {/* Left Column: Branding / Cinematic Background */}
-            <div className="hidden lg:flex lg:w-3/5 xl:w-[65%] relative overflow-hidden bg-slate-950">
-                <div 
-                    className="absolute inset-0 bg-cover bg-center transition-transform duration-[20s] hover:scale-105"
-                    style={{ backgroundImage: "url('/assets/login_bg.png')" }}
-                />
+        <div className="min-h-screen w-full flex bg-[#3b7bed] font-sans selection:bg-indigo-300/30 overflow-hidden relative">
+            {/* Left Column: White Canvas with Illustration */}
+            <div className="hidden lg:flex w-1/2 bg-white relative flex-col items-center justify-center p-12">
+                {/* Top Left Accent Abstract Shape */}
+                <div className="absolute top-0 left-0">
+                    <svg width="250" height="250" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M0 0H150V50C150 77.6142 127.614 100 100 100H50C22.3858 100 0 77.6142 0 50V0Z" fill="#3b7bed"/>
+                    </svg>
+                </div>
                 
-                {/* Gradient Overlays */}
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-slate-950/20" />
+                {/* Bottom Right Accent Quarter Circle */}
+                <div className="absolute bottom-0 right-0">
+                    <div className="w-32 h-32 bg-[#3b7bed] rounded-tl-full"></div>
+                </div>
 
-                {/* Content Overlay */}
-                <div className="relative z-10 p-16 flex flex-col justify-between h-full max-w-2xl">
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                </svg>
-                            </div>
-                            <span className="text-2xl font-bold text-white tracking-tight uppercase">BBIK MOM Generator</span>
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        <h2 className="text-5xl font-bold text-white leading-[1.15]">
-                            Professional Meeting Intelligence <span className="text-indigo-500">Starts Here.</span>
-                        </h2>
-                        <p className="text-slate-300 text-lg max-w-md leading-relaxed">
-                            Automate transcription, analysis, and document generation for all meeting minutes 
-                            with our enterprise AI processing pipeline.
-                        </p>
-                        
-                        <div className="pt-8 flex items-center gap-12 border-t border-slate-800">
-                            <div>
-                                <p className="text-white font-bold text-2xl">Large-v3</p>
-                                <p className="text-slate-500 text-sm uppercase tracking-wider mt-1">Transcription Engine</p>
-                            </div>
-                            <div>
-                                <p className="text-white font-bold text-2xl">Claude 3.5</p>
-                                <p className="text-slate-500 text-sm uppercase tracking-wider mt-1">Analytical Core</p>
-                            </div>
-                            <div>
-                                <p className="text-white font-bold text-2xl">AES-256</p>
-                                <p className="text-slate-500 text-sm uppercase tracking-wider mt-1">Data Isolation</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <p className="text-slate-500 text-xs font-medium uppercase tracking-widest">
-                        Bluebik Technology © 2026 - iTPM Unit
-                    </p>
+                {/* Main Isometric Illustration */}
+                <div className="relative z-10 w-full max-w-lg mb-8">
+                    <img 
+                        src="/assets/isometric_workspace.png" 
+                        alt="Workspace Illustration" 
+                        className="w-full h-auto object-contain drop-shadow-sm mix-blend-multiply pointer-events-none"
+                    />
                 </div>
             </div>
 
-            {/* Right Column: Login Form */}
-            <div className="w-full lg:w-2/5 xl:w-[35%] bg-slate-900 border-l border-slate-800 flex flex-col items-center justify-center p-8 md:p-12">
-                <div className="w-full max-w-sm space-y-10">
-                    <div className="space-y-3">
-                        <div className="lg:hidden flex items-center justify-center mb-10">
-                            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
-                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <h1 className="text-3xl font-bold text-white tracking-tight">Login Portal</h1>
-                        <p className="text-slate-400">Please authenticate to access the dashboard</p>
-                    </div>
+            {/* Right Column: Blue Canvas with Forms */}
+            <div className="w-full lg:w-1/2 relative flex items-center justify-center p-6 sm:p-12 overflow-hidden">
+                {/* Background Ring Decorations */}
+                <svg className="absolute w-[600px] h-[600px] text-white/10 right-[-150px] bottom-[-200px] pointer-events-none" viewBox="0 0 200 200" fill="none">
+                    <circle cx="100" cy="100" r="95" stroke="currentColor" strokeWidth="0.5" />
+                    <circle cx="100" cy="100" r="80" stroke="currentColor" strokeWidth="0.5" />
+                    <circle cx="100" cy="100" r="65" stroke="currentColor" strokeWidth="0.5" />
+                </svg>
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        {error && (
-                            <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-xl text-sm font-medium">
-                                {error}
-                            </div>
-                        )}
+                <svg className="absolute w-[400px] h-[400px] text-white/5 left-[-100px] top-[100px] pointer-events-none" viewBox="0 0 200 200" fill="none">
+                    <circle cx="100" cy="100" r="95" stroke="currentColor" strokeWidth="0.5" />
+                    <circle cx="100" cy="100" r="80" stroke="currentColor" strokeWidth="0.5" />
+                </svg>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-300 ml-1">Company Email</label>
-                            <input
-                                type="email"
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-slate-950/50 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 rounded-xl px-4 py-4 text-white placeholder:text-slate-600 transition-all outline-none"
-                                placeholder="name@bbik.com"
+                {/* Login Card Container */}
+                <div className="w-full max-w-[440px] bg-white rounded-[24px] shadow-2xl z-10 overflow-hidden relative">
+                    <div className="p-10 sm:p-12 pb-6">
+                        
+                        {/* Logo */}
+                        <div className="mb-8">
+                            <img 
+                                src="/bbik-logo-vertical.png" 
+                                alt="Bluebik Logo" 
+                                className="h-20 object-contain -ml-2"
+                                onError={(e) => {
+                                    // Fallback text if logo fails
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                    e.currentTarget.parentElement!.innerHTML = '<span class="text-2xl font-bold tracking-tight text-[#3b7bed]">bluebik</span>';
+                                }}
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center ml-1">
-                                <label className="text-sm font-semibold text-slate-300">Password</label>
-                                <a href="#" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium decoration-indigo-500/30 hover:underline">Forgot?</a>
-                            </div>
-                            <input
-                                type="password"
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-slate-950/50 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 rounded-xl px-4 py-4 text-white placeholder:text-slate-600 transition-all outline-none"
-                                placeholder="••••••••"
-                            />
+                        {/* Heading & Subtitle */}
+                        <div className="mb-8">
+                            <h1 className="text-[32px] font-bold text-slate-800 leading-tight mb-2 tracking-tight">
+                                Hello!
+                            </h1>
+                            <p className="text-[15px] font-medium text-slate-500">
+                                Sign Up to Get Started
+                            </p>
                         </div>
 
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-3 group mt-4"
-                        >
-                            {isLoading ? (
-                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            ) : (
-                                <>
-                                    Log In to Dashboard
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:translate-x-1 transition-transform">
-                                        <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
-                                    </svg>
-                                </>
+                        {/* Login Form */}
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {error && (
+                                <div className="bg-red-50 text-red-500 text-sm font-medium px-4 py-3 rounded-[16px]">
+                                    {error}
+                                </div>
                             )}
-                        </button>
-                    </form>
 
-                    <div className="bg-indigo-500/5 border border-indigo-500/10 p-5 rounded-2xl space-y-2">
-                        <p className="text-white text-xs font-bold uppercase tracking-wider">Test Credentials</p>
-                        <div className="flex flex-col gap-1">
-                            <p className="text-slate-400 text-sm">
-                                Email: <span className="text-indigo-300 font-mono">test@bbik.com</span>
-                            </p>
-                            <p className="text-slate-400 text-sm">
-                                Password: <span className="text-indigo-300 font-mono">password123</span>
-                            </p>
-                        </div>
+                            {/* Username / Email Field */}
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <svg className="h-[18px] w-[18px] text-slate-400 group-focus-within:text-[#3b7bed] transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                                    </svg>
+                                </div>
+                                <input
+                                    type="email"
+                                    required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="block w-full pl-[44px] pr-4 py-[14px] border border-slate-200 rounded-[20px] text-[15px] text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#3b7bed] focus:ring-1 focus:ring-[#3b7bed] transition-all bg-white"
+                                    placeholder="Username"
+                                />
+                            </div>
+
+                            {/* Password Field */}
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <svg className="h-[18px] w-[18px] text-slate-400 group-focus-within:text-[#3b7bed] transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                    </svg>
+                                </div>
+                                <input
+                                    type="password"
+                                    required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="block w-full pl-[44px] pr-4 py-[14px] border border-slate-200 rounded-[20px] text-[15px] text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#3b7bed] focus:ring-1 focus:ring-[#3b7bed] transition-all bg-white"
+                                    placeholder="Password"
+                                />
+                            </div>
+
+                            {/* Action Button */}
+                            <div className="pt-2 pb-1">
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="w-full bg-[#3b7bed] hover:bg-[#3269cf] text-white font-semibold text-[15px] py-[15px] rounded-[24px] shadow-lg shadow-[#3b7bed]/30 transition-all active:scale-[0.98] disabled:opacity-75 disabled:active:scale-100 flex items-center justify-center"
+                                >
+                                    {isLoading ? (
+                                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    ) : (
+                                        "Login"
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Forgot Password */}
+                            <div className="pt-1">
+                                <a href="#" className="text-[13px] font-medium text-slate-500 hover:text-[#3b7bed] transition-colors">
+                                    Forgot Password
+                                </a>
+                            </div>
+                        </form>
+
                     </div>
-
-                    <div className="pt-6 text-center border-t border-slate-800">
-                        <p className="text-slate-500 text-sm">
-                            New user?{' '}
-                            <Link href="/register" className="text-white font-bold hover:text-indigo-400 transition-colors">
-                                Create account
-                            </Link>
-                        </p>
+                    
+                    {/* Test Credentials Helper Area (Subtle overlay beneath main form) */}
+                    <div className="bg-slate-50 border-t border-slate-100 px-10 py-5">
+                        <div className="flex justify-between items-center opacity-70 hover:opacity-100 transition-opacity">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Test Account</span>
+                            <div className="text-right">
+                                <span className="text-[13px] text-slate-500 font-medium block">test@bbik.com</span>
+                                <span className="text-[11px] text-slate-400 font-mono">password123</span>
+                            </div>
+                            <button 
+                                type="button" 
+                                onClick={() => { setEmail('test@bbik.com'); setPassword('password123'); }}
+                                className="text-[11px] bg-slate-200 hover:bg-slate-300 text-slate-600 px-3 py-1.5 rounded-full font-medium transition-colors"
+                            >
+                                Auto-Fill
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

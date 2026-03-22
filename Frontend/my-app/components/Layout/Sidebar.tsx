@@ -4,6 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './Sidebar.module.css';
 import { useI18n } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -13,8 +14,10 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     const router = useRouter();
     const { language, setLanguage, dict } = useI18n();
+    const { logout } = useAuth();
 
     const handleSignOut = () => {
+        logout();
         router.push('/');
     };
 
