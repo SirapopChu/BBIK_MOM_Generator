@@ -1,99 +1,212 @@
-name: CI
+name: CI/CD Optimized
 
 on:
   push:
-    branches: [main, dev, feature/**]
+    branches: [main, dev, "feature/**"]
+    paths:
+      - 'Backend/**'
+      - 'Frontend/my-app/**'
+      - '.github/workflows/**'
   pull_request:
     branches: [main, dev]
+    paths:
+      - 'Backend/**'
+      - 'Frontend/my-app/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write 
 
 jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'Backend/**'
+            frontend:
+              - 'Frontend/my-app/**'
+
   backend:
     name: Backend CI
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js for backend
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
+          cache-dependency-path: Backend/package-lock.json
 
-      - name: Install Backend Dependencies
+      - name: Install & Lint & Test
         working-directory: Backend
         run: |
-          npm install
-
-      - name: Run Backend Lint
-        working-directory: Backend
-        run: |
-          if [ -f package.json ] && npm run | grep -q "lint"; then
-            npm run lint
-          else
-            echo "No lint script defined in Backend/package.json, skipping."
-          fi
-
-      - name: Run Backend Test Helper
-        working-directory: Backend
-        run: |
-          if [ -f test-whisper.js ]; then
-            node test-whisper.js || echo "Skipping failing live API test in CI. This should run locally."
-          else
-            echo "No test-whisper.js found, skipping."
-          fi
+          npm ci --prefer-offline --no-audit --no-fund
+          npm run lint --if-present
+          if [ -f test-whisper.js ]; then node test-whisper.js; fi
 
   frontend:
     name: Frontend CI
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js for frontend
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: Frontend/my-app/package-lock.json
 
-      - name: Install Frontend Dependencies
+      - name: Build Frontend
         working-directory: Frontend/my-app
         run: |
-          npm install
-
-      - name: Run Frontend Typecheck
-        working-directory: Frontend/my-app
-        run: |
-          if [ -f package.json ] && npm run | grep -q "type-check\|lint"; then
-            npm run lint || true
-            npm run type-check || true
-          else
-            echo "No lint/type-check scripts found for frontend."
-          fi
-
-      - name: Run Frontend Build
-        working-directory: Frontend/my-app
-        run: |
+          npm ci --prefer-offline --no-audit --no-fund
+          npm run lint --if-present
+          npm run type-check --if-present
           npm run build
 
-  docs:
-    name: Docs validation
+  docs-validation:
+    name: Docs Check
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Validate README exists
+        with:
+          sparse-checkout: |
+            Backend/README.md
+            Frontend/my-app/README.md
+      - name: Validate README
         run: |
-          if [ ! -f Backend/README.md ]; then
-            echo "Backend README not found" && exit 1
-          fi
-          if [ ! -f Frontend/my-app/README.md ]; then
-            echo "Frontend README not found" && exit 1
-          fi
+          test -f Backend/README.md || (echo "Backend README missing" && exit 1)
+          test -f Frontend/my-app/README.md || (echo "Frontend README missing" && exit 1)
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+    
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+    
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  dependency-check:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+    
+      - name: Audit Backend Dependencies
+        working-directory: Backend
+        run: npm audit --audit-level moderate || true
+    
+      - name: Audit Frontend Dependencies  
+        working-directory: Frontend/my-app
+        run: npm audit --audit-level moderate || true
+
+  performance-test:
+    name: Performance Test
+    needs: [detect-changes, frontend]
+    if: ${{ needs.detect-changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Frontend/my-app/package-lock.json
+          
+      - name: Build and Start Frontend
+        working-directory: Frontend/my-app
+        run: |
+          npm ci --prefer-offline --no-audit --no-fund
+          npm run build
+          npm start &
+          npx wait-on http://localhost:3000 -t 30000
+
+      - name: Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          urls: http://localhost:3000
+          configPath: Frontend/my-app/.lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [backend, frontend]
+    if: |
+      always() && 
+      github.ref == 'refs/heads/dev' &&
+      (needs.backend.result == 'success' || needs.backend.result == 'skipped') &&
+      (needs.frontend.result == 'success' || needs.frontend.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Deploy to Staging
+        run: echo "Deploy to staging environment"
+
+  notify:
+    name: Notify Results
+    needs: [backend, frontend, security-scan, dependency-check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  codeql-scan:
+    name: CodeQL Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+      - uses: github/codeql-action/analyze@v3
