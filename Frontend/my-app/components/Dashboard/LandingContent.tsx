@@ -1,11 +1,17 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import styles from './LandingContent.module.css';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTasks } from '@/services/api';
+import { getTasks, TaskStatus } from '@/services/api';
 
 const LandingContent = () => {
     const router = useRouter();
     const { dict } = useI18n();
     const { user } = useAuth();
-    const [tasks, setTasks] = useState<Task[]>([]);
+    const [tasks, setTasks] = useState<TaskStatus[]>([]);
 
     useEffect(() => {
         const fetchTasks = async () => {

@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import styles from './ProcessingQueue.module.css';
 import { useI18n } from '@/contexts/LanguageContext';
+import Cookies from 'js-cookie';
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:3001/api';
 
 const PROCESSING_STEPS = [
     { id: 'upload', label: 'Upload', description: 'Receiving media stream' },
@@ -37,14 +38,23 @@ const ProcessingQueue = () => {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const getHeaders = (): Record<string, string> => {
+        const token = Cookies.get('auth_token');
+        const headers: Record<string, string> = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        return headers;
+    };
+
     const fetchTasks = async () => {
         try {
-            const res = await fetch(`${API_BASE}/tasks`);
+            const res = await fetch(`${API_BASE}/tasks`, { headers: getHeaders() });
             const data = await res.json();
-            setTasks(data.tasks);
+            setTasks(data.tasks || []);
             
             // If nothing is selected, select the first one if tasks exist
-            if (!selectedTaskId && data.tasks.length > 0) {
+            if (!selectedTaskId && data.tasks && data.tasks.length > 0) {
                 setSelectedTaskId(data.tasks[0].id);
             }
         } catch (err) {
@@ -56,9 +66,9 @@ const ProcessingQueue = () => {
 
     const fetchLogs = async (taskId: string) => {
         try {
-            const res = await fetch(`${API_BASE}/tasks/${taskId}/logs`);
+            const res = await fetch(`${API_BASE}/tasks/${taskId}/logs`, { headers: getHeaders() });
             const data = await res.json();
-            setLogs(data.logs);
+            setLogs(data.logs || []);
         } catch (err) {
             console.error('[FetchLogs]', err);
         }
@@ -67,7 +77,7 @@ const ProcessingQueue = () => {
     const handleCancelTask = async (taskId: string) => {
         if (!confirm(dict.queue.cancelConfirm)) return;
         try {
-            await fetch(`${API_BASE}/tasks/${taskId}/cancel`, { method: 'POST' });
+            await fetch(`${API_BASE}/tasks/${taskId}/cancel`, { method: 'POST', headers: getHeaders() });
             fetchTasks();
         } catch (err) {
             console.error('[CancelTask]', err);
@@ -77,7 +87,7 @@ const ProcessingQueue = () => {
     const handleDeleteTask = async (taskId: string) => {
         if (!confirm(dict.queue.deleteConfirm)) return;
         try {
-            await fetch(`${API_BASE}/tasks/${taskId}`, { method: 'DELETE' });
+            await fetch(`${API_BASE}/tasks/${taskId}`, { method: 'DELETE', headers: getHeaders() });
             if (selectedTaskId === taskId) setSelectedTaskId(null);
             fetchTasks();
         } catch (err) {
@@ -88,7 +98,7 @@ const ProcessingQueue = () => {
     const handleClearHistory = async () => {
         if (!confirm(dict.queue.clearConfirm)) return;
         try {
-            await fetch(`${API_BASE}/tasks`, { method: 'DELETE' });
+            await fetch(`${API_BASE}/tasks`, { method: 'DELETE', headers: getHeaders() });
             fetchTasks();
         } catch (err) {
             console.error('[ClearHistory]', err);
@@ -97,7 +107,7 @@ const ProcessingQueue = () => {
 
     const handleDownload = async (task: Task) => {
         try {
-            const res = await fetch(`${API_BASE}/tasks/${task.id}/download`);
+            const res = await fetch(`${API_BASE}/tasks/${task.id}/download`, { headers: getHeaders() });
             if (!res.ok) throw new Error('Download failed');
             const blob = await res.blob();
             const url = window.URL.createObjectURL(blob);

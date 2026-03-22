@@ -42,4 +42,5 @@ EXPOSE 3000
 
 USER node
 
+ENV HOSTNAME="0.0.0.0"
 CMD ["node", "server.js"]
