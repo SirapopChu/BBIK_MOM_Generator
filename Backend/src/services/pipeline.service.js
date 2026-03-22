@@ -32,17 +32,19 @@ export async function runAudioPipeline(taskId, userId, file, language, metadata,
         );
 
         await checkCancelled();
-        await taskService.addLog(taskId, `Transcription complete. Detected language: ${transcriptResult.language}`);
+        const durationStr = transcriptResult.duration ? `(${Math.floor(transcriptResult.duration / 60)}m ${Math.round(transcriptResult.duration % 60)}s)` : '';
+        await taskService.addLog(taskId, `Transcription complete. Language: ${transcriptResult.language} ${durationStr}`);
 
         // Step 2: Analyze with Claude
         await checkCancelled();
         await taskService.updateTask(taskId, { currentStep: 'analyze', progress: 40 });
         await taskService.addLog(taskId, 'Sending transcript to Claude AI for minute generation...');
 
-        const { result } = await generateMinutesText(transcriptResult.text, model);
+        const { result, usage } = await generateMinutesText(transcriptResult.text, model);
 
         await checkCancelled();
-        await taskService.addLog(taskId, 'Claude analysis complete.');
+        const usageMsg = usage ? `Usage: ${usage.input_tokens} input / ${usage.output_tokens} output tokens.` : '';
+        await taskService.addLog(taskId, `Claude analysis complete. ${usageMsg}`);
 
         // Step 3: Build DOCX
         await checkCancelled();
