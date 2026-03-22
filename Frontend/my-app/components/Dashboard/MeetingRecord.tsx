@@ -20,7 +20,7 @@ const MeetingRecord = () => {
     const [uploadedTranscribeFiles, setUploadedTranscribeFiles] = useState<File[]>([]);
     const audioFileInputRef = useRef<HTMLInputElement>(null);
     const transcribeFileInputRef = useRef<HTMLInputElement>(null);
-    const ffmpegRef = useRef(new FFmpeg());
+    const ffmpegRef = useRef<FFmpeg | null>(null);
     const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
     const [compressionProgress, setCompressionProgress] = useState<string | null>(null);
 
@@ -28,7 +28,7 @@ const MeetingRecord = () => {
     const wavesurferRef = useRef<WaveSurfer | null>(null);
     const recordPluginRef = useRef<any>(null);
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    
+
     // New states for actual recording and save flow
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
     const [showSaveModal, setShowSaveModal] = useState(false);
@@ -51,6 +51,9 @@ const MeetingRecord = () => {
 
     // Load FFmpeg core
     const loadFFmpeg = async () => {
+        if (!ffmpegRef.current) {
+            ffmpegRef.current = new FFmpeg();
+        }
         const ffmpeg = ffmpegRef.current;
         if (ffmpeg.loaded) return;
 
@@ -67,17 +70,17 @@ const MeetingRecord = () => {
     };
 
     const compressAudioFile = async (file: File | Blob, name: string): Promise<Blob> => {
-        const ffmpeg = ffmpegRef.current;
-        if (!ffmpeg.loaded) {
+        if (!ffmpegRef.current || !ffmpegRef.current.loaded) {
             setCompressionProgress('Loading engine...');
             await loadFFmpeg();
         }
+        const ffmpeg = ffmpegRef.current!;
 
         const inputName = `input_${Date.now()}_${name}`;
         const outputName = `output_${Date.now()}.mp3`;
 
         setCompressionProgress('Compressing...');
-        
+
         ffmpeg.on('progress', ({ progress }) => {
             setCompressionProgress(`Compressing: ${Math.round(progress * 100)}%`);
         });
@@ -85,14 +88,14 @@ const MeetingRecord = () => {
         await ffmpeg.writeFile(inputName, await fetchFile(file));
         // Recode to 32k Mono MP3 - even more efficient for speech to stay under 25MB
         await ffmpeg.exec(['-i', inputName, '-b:a', '32k', '-ac', '1', outputName]);
-        
+
         const data = await ffmpeg.readFile(outputName);
-        
+
         // Cleanup virtual file system
         try {
             await ffmpeg.deleteFile(inputName);
             await ffmpeg.deleteFile(outputName);
-        } catch (e) {}
+        } catch (e) { }
 
         setCompressionProgress(null);
         return new Blob([(data as any).buffer], { type: 'audio/mp3' });
@@ -102,6 +105,9 @@ const MeetingRecord = () => {
     const cleanupWaveSurfer = useCallback(() => {
         if (recordPluginRef.current) {
             try {
+                const origStream = (recordPluginRef.current as any).originalDisplayStream;
+                if (origStream) origStream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+                
                 if (recordPluginRef.current.isRecording() || recordPluginRef.current.isPaused()) {
                     recordPluginRef.current.stopRecording();
                 }
@@ -146,8 +152,10 @@ const MeetingRecord = () => {
 
             const allDevices = await navigator.mediaDevices.enumerateDevices();
             const audioInputs = allDevices.filter(device => device.kind === 'audioinput');
-            setDevices(audioInputs);
-            
+            // Mock a virtual device for system audio
+            const virtualDevice = { deviceId: 'system_audio', label: 'System Audio (Zoom/Teams)', kind: 'audioinput', groupId: 'system_virtual' } as MediaDeviceInfo;
+            setDevices([...audioInputs, virtualDevice]);
+
             if (audioInputs.length > 0 && !selectedDeviceId) {
                 // Try to find a default device or just pick the first
                 const defaultDevice = audioInputs.find(d => d.deviceId === 'default') || audioInputs[0];
@@ -196,6 +204,13 @@ const MeetingRecord = () => {
             // Handle record events
             record.on('record-end', (blob: Blob) => {
                 console.log('Recording ended, blob size:', blob.size);
+                
+                // Stop the screen sharing if we used system audio
+                const origStream = (record as any).originalDisplayStream as MediaStream;
+                if (origStream) {
+                    origStream.getTracks().forEach(track => track.stop());
+                }
+                
                 setRecordedBlob(blob);
                 setShowSaveModal(true);
                 setIsRecording(false);
@@ -205,9 +220,42 @@ const MeetingRecord = () => {
             // Track volume for the health panel
             // We can use the pulse event if available, or analyze the stream
             // In wavesurfer v7 RecordPlugin, we can access the underlying mic stream
-            
+
             // Start recording
-            record.startRecording({ deviceId: selectedDeviceId }).then(() => {
+            const startRecordPromise = selectedDeviceId === 'system_audio'
+                ? navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }).then((stream: MediaStream) => {
+                    const videoTrack = stream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        videoTrack.onended = () => {
+                            if (record.isRecording() && !(record as any).isPaused()) {
+                                record.stopRecording();
+                            }
+                        };
+                    }
+                    
+                    const audioTrack = stream.getAudioTracks()[0];
+                    if (!audioTrack) {
+                        stream.getTracks().forEach(track => track.stop());
+                        throw new Error('Please make sure to check "Share audio" when sharing screen or tab.');
+                    }
+                    
+                    // Create an audio-only stream for recording
+                    const audioStream = new MediaStream([audioTrack]);
+                    (record as any).stream = audioStream;
+                    
+                    const micStream = (record as any).renderMicStream(audioStream);
+                    (record as any).micStream = micStream;
+                    (record as any).unsubscribeDestroy = record.once('destroy', micStream.onDestroy.bind(micStream));
+                    (record as any).unsubscribeRecordEnd = record.once('record-end', micStream.onEnd.bind(micStream));
+                    
+                    // We also need to keep track of the original stream to stop it later
+                    (record as any).originalDisplayStream = stream;
+                    
+                    return record.startRecording();
+                })
+                : record.startRecording({ deviceId: selectedDeviceId });
+
+            startRecordPromise.then(() => {
                 // Monitor volume using Web Audio API
                 const stream = (record as any).stream;
                 if (stream) {
@@ -216,10 +264,10 @@ const MeetingRecord = () => {
                     const analyser = audioContext.createAnalyser();
                     analyser.fftSize = 256;
                     source.connect(analyser);
-                    
+
                     const bufferLength = analyser.frequencyBinCount;
                     const dataArray = new Uint8Array(bufferLength);
-                    
+
                     const updateVolume = () => {
                         if (!isRecording) return;
                         analyser.getByteFrequencyData(dataArray);
@@ -234,11 +282,14 @@ const MeetingRecord = () => {
                     updateVolume();
                 }
             }).catch((err: any) => {
-                console.error('Error starting mic:', err);
-                if (err.message && err.message.includes('system')) {
+                console.error('Error starting audio capture:', err);
+                const errMsg = err.message || 'Permission denied';
+                if (errMsg.includes('Share audio') || errMsg.includes('screen')) {
+                    alert(`System Audio error: ${errMsg}`);
+                } else if (errMsg.includes('system')) {
                     alert("Microphone access is blocked by macOS. Please go to System Settings → Privacy & Security → Microphone, and grant access to your browser.");
                 } else {
-                    alert(`Microphone error: ${err.message || 'Permission denied'}. Please ensure microphone permissions are granted.`);
+                    alert(`Microphone error: ${errMsg}. Please ensure permissions are granted.`);
                 }
                 setIsRecording(false);
                 cleanupWaveSurfer(); // Clean up if start fails
@@ -315,7 +366,7 @@ const MeetingRecord = () => {
 
     const handleDownloadMP3 = () => {
         if (!recordedBlob) return;
-        
+
         // In a real app, we might use a library like lamejs to encode as true MP3.
         // For now, we'll download the recorded blob (usually webm/wav) renamed to mp3
         // or just use the browser default if it's compatible.
@@ -325,7 +376,7 @@ const MeetingRecord = () => {
         a.download = `${recordingName || 'meeting_recording'}.mp3`;
         a.click();
         URL.revokeObjectURL(url);
-        
+
         setShowSaveModal(false);
         cleanupWaveSurfer();
     };
@@ -343,27 +394,27 @@ const MeetingRecord = () => {
     const handleTranscribe = async (blobToTranscribe?: Blob) => {
         const targetBlob = blobToTranscribe || recordedBlob;
         if (!targetBlob) return;
-        
+
         setIsTranscribing(true);
         setTranscriptResult(null);
         setTranscriptError(null);
 
         try {
             let audioBlob = targetBlob;
-            
+
             // Auto-compress if > 15MB 
             if (targetBlob.size > 15 * 1024 * 1024) {
-                 audioBlob = await compressAudioFile(targetBlob, recordingName);
+                audioBlob = await compressAudioFile(targetBlob, recordingName);
             }
 
             const formData = new FormData();
             // Use mp3 if compressed, else original
             const isMp3 = audioBlob.type === 'audio/mp3';
-            const ext = isMp3 ? 'mp3' 
-                      : audioBlob.type.includes('mp4') ? 'mp4'
-                      : audioBlob.type.includes('wav') ? 'wav'
-                      : 'webm';
-            
+            const ext = isMp3 ? 'mp3'
+                : audioBlob.type.includes('mp4') ? 'mp4'
+                    : audioBlob.type.includes('wav') ? 'wav'
+                        : 'webm';
+
             formData.append('audio', audioBlob, `recording.${ext}`);
             formData.append('language', 'th'); // hint Thai; change to '' for auto-detect
 
@@ -390,7 +441,7 @@ const MeetingRecord = () => {
     const handleTranscribeUploadedAudio = async (file: File) => {
         setIsProcessing(true);
         setActiveTaskId(null); // Reset
-        
+
         try {
             // STEP 1: Compression (if needed)
             let audioBlob: Blob = file;
@@ -425,11 +476,11 @@ const MeetingRecord = () => {
 
     const handleProcessRecordedAudio = async () => {
         if (!recordedBlob) return;
-        
+
         setShowSaveModal(false);
         setIsProcessing(true);
         setActiveTaskId(null);
-        
+
         try {
             let audioBlob: Blob = recordedBlob;
             const fileName = `${recordingName}.mp3`;
@@ -438,15 +489,15 @@ const MeetingRecord = () => {
             }
 
             const isMp3 = audioBlob.type === 'audio/mp3';
-            const ext = isMp3 ? 'mp3' 
-                      : audioBlob.type.includes('mp4') ? 'mp4'
-                      : audioBlob.type.includes('wav') ? 'wav'
-                      : 'webm';
-            
+            const ext = isMp3 ? 'mp3'
+                : audioBlob.type.includes('mp4') ? 'mp4'
+                    : audioBlob.type.includes('wav') ? 'wav'
+                        : 'webm';
+
             const formData = new FormData();
             formData.append('audio', audioBlob, `${recordingName}.${ext}`);
             formData.append('language', 'th');
-            
+
             const savedMetadata = localStorage.getItem('meeting_metadata');
             if (savedMetadata) {
                 formData.append('metadata', savedMetadata);
@@ -479,9 +530,9 @@ const MeetingRecord = () => {
         if (!transcriptResult) return;
         const content = transcriptResult.text;
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
         a.download = `${recordingName || 'transcript'}.txt`;
         a.click();
         URL.revokeObjectURL(url);
@@ -549,7 +600,7 @@ const MeetingRecord = () => {
         e.preventDefault();
         e.stopPropagation();
         e.currentTarget.classList.remove(styles.uploadAreaActive);
-        
+
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             const files = Array.from(e.dataTransfer.files);
             const audioFiles = files.filter(f => /\.(mp3|wav|m4a|webm)$/i.test(f.name));
@@ -566,7 +617,7 @@ const MeetingRecord = () => {
         e.preventDefault();
         e.stopPropagation();
         e.currentTarget.classList.remove(styles.uploadAreaActive);
-        
+
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             const files = Array.from(e.dataTransfer.files);
             const textFiles = files.filter(f => /\.(txt|md|pdf|doc|docx)$/i.test(f.name));
@@ -595,17 +646,17 @@ const MeetingRecord = () => {
             const formData = new FormData();
             formData.append('text', text);
             formData.append('filename', baseName);
-            
+
             // Get metadata from localStorage
             const savedMetadata = localStorage.getItem('meeting_metadata');
             let docName = baseName;
-            
+
             if (savedMetadata) {
                 formData.append('metadata', savedMetadata);
                 try {
                     const meta = JSON.parse(savedMetadata);
                     if (meta.title) docName = meta.title.replace(/\s+/g, '_');
-                } catch(e) {}
+                } catch (e) { }
             }
 
             const res = await fetch('http://localhost:3001/api/minutes/export-docx', {
@@ -620,9 +671,9 @@ const MeetingRecord = () => {
 
             // Download the returned .docx blob
             const blob = await res.blob();
-            const url  = URL.createObjectURL(blob);
-            const a    = document.createElement('a');
-            a.href     = url;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
             a.download = `${docName}_meeting_minutes.docx`;
             a.click();
             URL.revokeObjectURL(url);
@@ -637,15 +688,15 @@ const MeetingRecord = () => {
     return (
         <>
             {isProcessing && (
-                <ProcessingView 
-                    taskId={activeTaskId || ''} 
+                <ProcessingView
+                    taskId={activeTaskId || ''}
                     onClose={() => {
                         setIsProcessing(false);
                         setActiveTaskId(null);
-                    }} 
+                    }}
                 />
             )}
-            
+
             {/* ==== RECORDING MODE ==== */}
             {isRecording && (
                 <div className={styles.recordingMode}>
@@ -711,8 +762,8 @@ const MeetingRecord = () => {
                                                 const level = (volume / 128) * 20;
                                                 const isActive = i < level;
                                                 return (
-                                                    <div 
-                                                        key={i} 
+                                                    <div
+                                                        key={i}
                                                         className={`${styles.healthSegment} ${isActive ? (i < 14 ? styles.segmentGreen : i < 16 ? styles.segmentYellow : styles.segmentRed) : ''}`}
                                                     ></div>
                                                 );
@@ -752,7 +803,7 @@ const MeetingRecord = () => {
                             </div>
                             <div className={styles.footerDeviceT}>
                                 <div className={styles.footerDeviceL}>INPUT DEVICE</div>
-                                <select 
+                                <select
                                     className={styles.deviceSelect}
                                     value={selectedDeviceId}
                                     onChange={(e) => setSelectedDeviceId(e.target.value)}
@@ -898,20 +949,20 @@ const MeetingRecord = () => {
                             {/* Audio Upload Section */}
                             <div style={{ marginTop: '1.5rem' }}>
                                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>AUDIO FILE (.MP3, .WAV, .M4A)</div>
-                                <div 
-                                    className={`${styles.uploadArea} ${isRecording ? styles.uploadAreaDisabled : ''}`} 
+                                <div
+                                    className={`${styles.uploadArea} ${isRecording ? styles.uploadAreaDisabled : ''}`}
                                     onClick={() => !isRecording && handleAudioUploadClick()}
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleAudioDrop}
                                     style={{ cursor: isRecording ? 'not-allowed' : 'pointer', height: '160px', padding: '1rem' }}
                                 >
-                                    <input 
-                                        type="file" 
-                                        ref={audioFileInputRef} 
-                                        hidden 
-                                        multiple 
-                                        accept=".mp3,.wav,.m4a" 
+                                    <input
+                                        type="file"
+                                        ref={audioFileInputRef}
+                                        hidden
+                                        multiple
+                                        accept=".mp3,.wav,.m4a"
                                         onChange={handleAudioFileChange}
                                     />
                                     <div className={styles.uploadIcon} style={{ width: '36px', height: '36px', marginBottom: '0.5rem' }}>
@@ -927,15 +978,15 @@ const MeetingRecord = () => {
                                                         <span className={styles.uploadedFileSize}>({(file.size / (1024 * 1024)).toFixed(2)} MB)</span>
                                                     </div>
                                                     <div className={styles.uploadedFileActions}>
-                                                        <button 
-                                                            className={styles.transcribeFileBtn} 
+                                                        <button
+                                                            className={styles.transcribeFileBtn}
                                                             onClick={(e) => { e.stopPropagation(); handleTranscribeUploadedAudio(file); }}
                                                             disabled={isTranscribing}
                                                         >
                                                             Transcribe
                                                         </button>
-                                                        <button 
-                                                            className={styles.removeFileBtn} 
+                                                        <button
+                                                            className={styles.removeFileBtn}
                                                             onClick={(e) => { e.stopPropagation(); removeAudioFile(idx); }}
                                                         >
                                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -954,8 +1005,8 @@ const MeetingRecord = () => {
                             {/* Transcribe Upload Section */}
                             <div style={{ marginTop: '2rem' }}>
                                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>TRANSCRIPT FILE (.TXT, .MD, .PDF, .DOCX)</div>
-                                <div 
-                                    className={`${styles.uploadArea} ${isRecording ? styles.uploadAreaDisabled : ''}`} 
+                                <div
+                                    className={`${styles.uploadArea} ${isRecording ? styles.uploadAreaDisabled : ''}`}
                                     onClick={() => !isRecording && handleTranscribeUploadClick()}
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
@@ -974,8 +1025,8 @@ const MeetingRecord = () => {
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="12" y2="12"></line><line x1="15" y1="15" x2="12" y2="12"></line></svg>
                                     </div>
                                     <p className={styles.uploadText}>
-                                        {uploadedTranscribeFiles.length > 0 
-                                            ? uploadedTranscribeFiles.map(f => f.name).join(', ') 
+                                        {uploadedTranscribeFiles.length > 0
+                                            ? uploadedTranscribeFiles.map(f => f.name).join(', ')
                                             : 'Click or drag transcript'}
                                     </p>
                                     {uploadedTranscribeFiles.length > 0 && (
@@ -1078,7 +1129,7 @@ const MeetingRecord = () => {
                                 </div>
                             )}
 
-                             {/* Compression Progress */}
+                            {/* Compression Progress */}
                             {compressionProgress && (
                                 <div className={styles.compressionStatus}>
                                     <div className={styles.pulseDot}></div>
