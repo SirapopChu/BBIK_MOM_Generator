@@ -4,16 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import WaveSurfer    from 'wavesurfer.js';
 import RecordPlugin  from 'wavesurfer.js/dist/plugins/record.esm.js';
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RecordPluginInstance = any;
 
-type RecordPluginInstance = ReturnType<typeof RecordPlugin.create> & {
-    stream?: MediaStream;
-    originalDisplayStream?: MediaStream;
-    renderMicStream: (s: MediaStream) => { onDestroy: () => void; onEnd: () => void };
-    micStream: { onDestroy: () => void; onEnd: () => void } | null;
-    unsubscribeDestroy?: () => void;
-    unsubscribeRecordEnd?: () => void;
-};
 
 export interface UseAudioRecorderReturn {
     /** Whether recording is currently active (not paused). */
@@ -82,7 +75,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             try {
                 const rec = recordPluginRef.current;
                 const origStream = rec.originalDisplayStream;
-                if (origStream) origStream.getTracks().forEach(t => t.stop());
+                if (origStream) origStream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
                 if (rec.isRecording() || rec.isPaused()) rec.stopRecording();
             } catch { /* best effort */ }
             recordPluginRef.current = null;
@@ -210,7 +203,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             record.on('record-end', (blob: Blob) => {
                 // Stop screen-share stream if applicable.
                 const orig = record.originalDisplayStream;
-                if (orig) orig.getTracks().forEach(t => t.stop());
+                if (orig) orig.getTracks().forEach((t: MediaStreamTrack) => t.stop());
                 setRecordedBlob(blob);
                 setIsRecording(false);
                 setIsPaused(false);

@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'standalone',  // Required for multi-stage Docker production build
   async headers() {
     return [
       {
