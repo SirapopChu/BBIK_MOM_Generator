@@ -1,3 +1,12 @@
+import express            from 'express';
+import cors               from 'cors';
+import { config } from './config/index.js';
+import minutesRouter      from './routes/minutes.routes.js';
+import transcribeRouter   from './routes/transcribe.routes.js';
+import tasksRouter         from './routes/tasks.routes.js';
+import authRouter         from './routes/auth.routes.js';
+import { errorHandler }   from './middleware/errorHandler.js';
+import { authMiddleware } from './middleware/auth.middleware.js';
 import { initDb }           from './config/database.js';
 
 // Initialize Database
@@ -9,9 +18,6 @@ const app = express();
 app.use(cors({ origin: config.cors.allowedOrigins }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-import authRouter from './routes/auth.routes.js';
-import { authMiddleware } from './middleware/auth.middleware.js';
 
 // ── Routes ─────────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) =>

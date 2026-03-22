@@ -126,13 +126,13 @@ const repository = new TaskRepository();
 
 // ── Public API (compatibility shim — keeps existing call sites unchanged) ────
 
-export const createTask    = (title, type)               => repository.create(title, type);
+export const createTask    = (title, userId, type)       => repository.create(title, userId, type);
 export const updateTask    = (taskId, updates, result)   => repository.update(taskId, updates, result);
 export const cancelTask    = (taskId)                    => repository.cancel(taskId);
-export const deleteTask    = (taskId)                    => repository.delete(taskId);
-export const clearHistory  = ()                          => repository.clearHistory();
+export const deleteTask    = (taskId)                    => repository.deleteTask(taskId);
+export const clearHistory  = (userId)                    => repository.clearHistory(userId);
 export const addLog        = (taskId, msg)               => repository.addLog(taskId, msg);
-export const getTasks      = ()                          => repository.getAll();
+export const getTasks      = (userId)                    => repository.getAll(userId);
 export const getTaskLogs   = (taskId)                    => repository.getLogs(taskId);
-export const getTaskById   = (taskId)                    => repository.getById(taskId);
+export const getTaskById   = (taskId, userId)            => repository.getById(taskId, userId);
 export const getTaskResult = (taskId)                    => repository.getResult(taskId);

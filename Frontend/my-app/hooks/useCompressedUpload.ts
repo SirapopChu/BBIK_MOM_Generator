@@ -61,7 +61,7 @@ export function useCompressedUpload() {
         await ffmpeg.deleteFile(outName).catch(() => {});
 
         setCompressionProgress(null);
-        return new Blob([(data as Uint8Array).buffer], { type: 'audio/mp3' });
+        return new Blob([data as any], { type: 'audio/mp3' });
     }
 
     return { compressAudioFile, compressionProgress };
