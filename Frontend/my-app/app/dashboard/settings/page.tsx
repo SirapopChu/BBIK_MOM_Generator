@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import styles from './Settings.module.css';
+import { useI18n } from '@/contexts/LanguageContext';
 
 export default function SettingsPage() {
     const [model, setModel] = useState('claude-3-5-sonnet-20241022');
@@ -30,11 +31,13 @@ export default function SettingsPage() {
         setTimeout(() => setSaveSuccess(false), 3000);
     };
 
+    const { dict } = useI18n();
+
     return (
         <DashboardLayout>
             <div className={styles.container}>
-                <h1 className={styles.title}>System Configuration</h1>
-                <p className={styles.subtitle}>Fine-tune the AI generation and document output parameters.</p>
+                <h1 className={styles.title}>{dict.settings.title}</h1>
+                <p className={styles.subtitle}>{dict.settings.subtitle}</p>
 
                 <div className={styles.grid}>
                     {/* LLM Section */}
@@ -43,11 +46,11 @@ export default function SettingsPage() {
                             <div className={styles.iconWrapper}>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                             </div>
-                            <h2 className={styles.cardTitle}>Artificial Intelligence</h2>
+                            <h2 className={styles.cardTitle}>{dict.settings.aiSection}</h2>
                         </div>
 
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Intelligence Model</label>
+                            <label className={styles.label}>{dict.settings.modelLabel}</label>
                             <select 
                                 className={styles.select}
                                 value={model}
@@ -58,7 +61,7 @@ export default function SettingsPage() {
                                 <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fastest)</option>
                             </select>
                             <p className={styles.helperText}>
-                                Better models give more accurate insight but may take longer to process.
+                                {dict.settings.modelHelper}
                             </p>
                         </div>
                     </div>
@@ -69,27 +72,27 @@ export default function SettingsPage() {
                             <div className={styles.iconWrapper}>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
                             </div>
-                            <h2 className={styles.cardTitle}>Document Output</h2>
+                            <h2 className={styles.cardTitle}>{dict.settings.outputSection}</h2>
                         </div>
 
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Primary Language</label>
+                            <label className={styles.label}>{dict.settings.langLabel}</label>
                             <select 
                                 className={styles.select}
                                 value={language}
                                 onChange={(e) => setLanguage(e.target.value)}
                             >
-                                <option value="bilingual">Bilingual (Thai / English)</option>
-                                <option value="thai">Thai Only</option>
-                                <option value="english">English Only</option>
+                                <option value="bilingual">{dict.common.bilingual}</option>
+                                <option value="thai">{dict.common.thai}</option>
+                                <option value="english">{dict.common.english}</option>
                             </select>
                             <p className={styles.helperText}>
-                                Controls the language used for generated summaries and action items.
+                                {dict.settings.langHelper}
                             </p>
                         </div>
 
                         <div className={styles.formGroup}>
-                            <label className={styles.label}>Signatory / Saved By</label>
+                            <label className={styles.label}>{dict.settings.pmoLabel}</label>
                             <input 
                                 type="text" 
                                 className={styles.input}
@@ -98,7 +101,7 @@ export default function SettingsPage() {
                                 placeholder="e.g. Senior PMO Analyst"
                             />
                             <p className={styles.helperText}>
-                                This name will appear at the bottom of generated DOCX files.
+                                {dict.settings.pmoHelper}
                             </p>
                         </div>
                     </div>
@@ -108,11 +111,11 @@ export default function SettingsPage() {
                     {saveSuccess && (
                         <div className={styles.successMsg}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            Settings saved successfully
+                            {dict.settings.saveSuccess}
                         </div>
                     )}
                     <button className={styles.saveBtn} onClick={handleSave}>
-                        Save Configuration
+                        {dict.settings.saveBtn}
                     </button>
                 </div>
             </div>

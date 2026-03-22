@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './LandingContent.module.css';
+import { useI18n } from '@/contexts/LanguageContext';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -16,6 +17,7 @@ interface Task {
 
 const LandingContent = () => {
     const router = useRouter();
+    const { dict } = useI18n();
     const [tasks, setTasks] = useState<Task[]>([]);
 
     useEffect(() => {
@@ -39,14 +41,14 @@ const LandingContent = () => {
 
     return (
         <div className={styles.container}>
-            <h1 className={styles.welcomeText}>Welcome back, Tipakorn!</h1>
+            <h1 className={styles.welcomeText}>{dict.landing.welcomePrefix}, Tipakorn!</h1>
 
             <div className={styles.topCards}>
                 <div className={`${styles.actionCard} ${styles.primaryCard}`} onClick={() => router.push('/dashboard/new-meeting')} style={{ cursor: 'pointer' }}>
                     <div className={styles.cardIcon}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
                     </div>
-                    <h2 className={styles.cardTitle}>New Meeting</h2>
+                    <h2 className={styles.cardTitle}>{dict.common.newMeeting}</h2>
                     <p className={styles.cardDesc}>Start a live recording or AI transcription.</p>
                 </div>
 
@@ -54,7 +56,7 @@ const LandingContent = () => {
                     <div className={styles.cardIcon}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
                     </div>
-                    <h2 className={styles.cardTitle}>Review Queue</h2>
+                    <h2 className={styles.cardTitle}>{dict.common.processingQueue}</h2>
                     <p className={styles.cardDesc}>Check summaries waiting for approval.</p>
                 </div>
             </div>
@@ -65,26 +67,26 @@ const LandingContent = () => {
                     <div className={styles.panelCard}>
                         <div className={styles.panelHeader}>
                             <div>
-                                <h3 className={styles.panelTitle}>Recent Meetings</h3>
-                                <p className={styles.panelSubtitle}>History of your processed meeting intelligence</p>
+                                <h3 className={styles.panelTitle}>{dict.landing.recentMeetings}</h3>
+                                <p className={styles.panelSubtitle}>{dict.landing.recentSubtitle}</p>
                             </div>
-                            <button className={styles.viewAllBtn} onClick={() => router.push('/dashboard/processing-queue')}>View All</button>
+                            <button className={styles.viewAllBtn} onClick={() => router.push('/dashboard/processing-queue')}>{dict.landing.viewAll}</button>
                         </div>
 
                         <div className={styles.tableContainer}>
                             <table className={styles.table}>
                                 <thead>
                                     <tr>
-                                        <th>Meeting Title</th>
-                                        <th>Date & Time</th>
-                                        <th>Status</th>
-                                        <th>ID</th>
+                                        <th>{dict.landing.tableTitle}</th>
+                                        <th>{dict.landing.tableDateTime}</th>
+                                        <th>{dict.landing.tableStatus}</th>
+                                        <th>{dict.landing.tableID}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {recentTasks.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No recent meetings found.</td>
+                                            <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>{dict.dashboard.noTasks}</td>
                                         </tr>
                                     ) : (
                                         recentTasks.map(task => (
@@ -115,7 +117,7 @@ const LandingContent = () => {
                     <div className={styles.statCardsRow}>
                         <div className={styles.statCard}>
                             <div>
-                                <div className={styles.statLabel}>MEETINGS PROCESSED</div>
+                                <div className={styles.statLabel}>{dict.landing.processedCount}</div>
                                 <div className={styles.statValueContainer}>
                                     <span className={styles.statValue}>{recentTasks.length}</span>
                                 </div>
@@ -127,7 +129,7 @@ const LandingContent = () => {
 
                         <div className={styles.statCard}>
                             <div>
-                                <div className={styles.statLabel}>ACTIVE TASKS</div>
+                                <div className={styles.statLabel}>{dict.landing.activeCount}</div>
                                 <div className={styles.statValueContainer}>
                                     <span className={styles.statValue}>{activeTasks.length}</span>
                                 </div>
@@ -141,15 +143,15 @@ const LandingContent = () => {
                     <div className={styles.panelCard}>
                         <div className={styles.panelHeader}>
                             <div>
-                                <h3 className={styles.panelTitle}>Active Tasks</h3>
-                                <p className={styles.panelSubtitle}>Real-time AI processing</p>
+                                <h3 className={styles.panelTitle}>{dict.landing.activeTasks}</h3>
+                                <p className={styles.panelSubtitle}>{dict.landing.activeSubtitle}</p>
                             </div>
                             {activeTasks.length > 0 && <span className={styles.statusDot} style={{ backgroundColor: '#6366f1' }}></span>}
                         </div>
 
                         {activeTasks.length === 0 ? (
                             <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b', fontSize: '0.875rem' }}>
-                                No active tasks running at the moment.
+                                {dict.landing.noActive}
                             </div>
                         ) : (
                             <div className={styles.activeTasksList} style={{ padding: '1rem' }}>
@@ -169,7 +171,7 @@ const LandingContent = () => {
 
                         <div className={styles.activeTasksFooter}>
                             <button className={styles.openTasksBtn} onClick={() => router.push('/dashboard/processing-queue')}>
-                                Open Tasks Manager
+                                {dict.landing.managerBtn}
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                             </button>
                         </div>
@@ -181,7 +183,7 @@ const LandingContent = () => {
                         </div>
 
                         <a href="/dashboard/processing-queue" className={styles.readLink}>
-                            Read Analysis
+                            {dict.landing.readAnalysis}
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                         </a>
                     </div>

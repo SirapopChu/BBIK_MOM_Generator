@@ -8,6 +8,8 @@ import { useAudioRecorder, formatTime } from '../../hooks/useAudioRecorder';
 import { useCompressedUpload } from '../../hooks/useCompressedUpload';
 import { useTranscription } from '../../hooks/useTranscription';
 
+import { useI18n } from '../../contexts/LanguageContext';
+
 /**
  * MeetingRecord Component (Refactored)
  * 
@@ -16,6 +18,7 @@ import { useTranscription } from '../../hooks/useTranscription';
  * - Uses the api facade for backend communication.
  */
 const MeetingRecord = () => {
+    const { dict } = useI18n();
     // ── Local State ──────────────────────────────────────────────────────────
     const [isProcessing, setIsProcessing] = useState(false);
     const [activeTaskId,  setActiveTaskId]  = useState<string | null>(null);
@@ -351,35 +354,35 @@ const MeetingRecord = () => {
                         <div className={styles.stepLine}></div>
                         <div className={styles.step}>
                             <div className={`${styles.stepCircle} ${styles.activeStepCircle}`}>2</div>
-                            <div className={`${styles.stepLabel} ${styles.activeStepLabel}`}>RECORD</div>
+                            <div className={`${styles.stepLabel} ${styles.activeStepLabel}`}>{dict.record.start.toUpperCase()}</div>
                         </div>
                         <div className={styles.stepLine}></div>
                         <div className={styles.step}>
                             <div className={styles.stepCircle}>3</div>
-                            <div className={styles.stepLabel}>PROCESS</div>
+                            <div className={styles.stepLabel}>{dict.record.processBtn.split(' ')[0].toUpperCase()}</div>
                         </div>
                         <div className={styles.stepLine}></div>
                         <div className={styles.step}>
                             <div className={styles.stepCircle}>4</div>
-                            <div className={styles.stepLabel}>REVIEW</div>
+                            <div className={styles.stepLabel}>{dict.common.reviewEdit.split(' ')[0].toUpperCase()}</div>
                         </div>
                         <div className={styles.stepLine}></div>
                         <div className={styles.step}>
                             <div className={styles.stepCircle}>5</div>
-                            <div className={styles.stepLabel}>EXPORT</div>
+                            <div className={styles.stepLabel}>{dict.common.exportMinutes.split(' ')[0].toUpperCase()}</div>
                         </div>
                     </div>
 
                     <div className={styles.breadcrumbs}>
                         PROJECTS &gt; MOM GENERATOR &gt; ACTIVE SESSION
                     </div>
-                    <h1 className={styles.title}>Meeting Media Capture</h1>
+                    <h1 className={styles.title}>{dict.record.title}</h1>
 
                     <div className={styles.gridContainer}>
                         <div className={styles.card}>
                             <div className={styles.cardHeader}>
                                 <div>
-                                    <h2 className={styles.cardTitle}>Live Audio Recorder</h2>
+                                    <h2 className={styles.cardTitle}>{dict.record.title}</h2>
                                     <p className={styles.cardDesc}>Directly capture browser audio input</p>
                                 </div>
                                 <div className={styles.badge}>

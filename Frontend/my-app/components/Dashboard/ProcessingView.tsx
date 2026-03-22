@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styles from './ProcessingView.module.css';
+import { useI18n } from '@/contexts/LanguageContext';
 
 interface ProcessingViewProps {
     taskId: string;
@@ -9,6 +10,7 @@ interface ProcessingViewProps {
 }
 
 const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
+    const { dict } = useI18n();
     const [task, setTask] = useState<any>(null);
     const [logs, setLogs] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -69,13 +71,13 @@ const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
             document.body.removeChild(a);
         } catch (err) {
             console.error('Download error:', err);
-            alert('ไม่สามารถดาวน์โหลดไฟล์ได้ กรุณาลองใหม่อีกครั้ง');
+            alert(dict.common.loading); // Falling back or using a general error if available
         }
     };
 
     const handleCancel = async () => {
         if (!taskId) return;
-        if (!confirm('Are you sure you want to stop this process?')) return;
+        if (!confirm(dict.processing.cancelBtn + '?')) return;
         try {
             await fetch(`http://localhost:3001/api/tasks/${taskId}/cancel`, { method: 'POST' });
             onClose?.();
@@ -86,11 +88,11 @@ const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
     };
 
     const displayPct = task?.progress ?? 0;
-    const currentStepLabel = task?.status === 'failed' ? 'Error occurred' 
-                           : task?.status === 'completed' ? 'Processing Complete!'
-                           : task?.status === 'cancelled' ? 'Task Cancelled'
-                           : task ? `Step: ${task.currentStep || 'Initializing'}` 
-                           : 'Initializing...';
+    const currentStepLabel = task?.status === 'failed' ? dict.processing.failed 
+                           : task?.status === 'completed' ? dict.processing.complete
+                           : task?.status === 'cancelled' ? dict.processing.cancelled
+                           : task ? `${dict.processing.step}: ${task.currentStep || dict.processing.initializing}` 
+                           : dict.processing.initializing;
 
     const progressDeg = (displayPct / 100) * 360;
 
@@ -113,14 +115,18 @@ const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
                         <span className={styles.percentage} style={{ color: task?.status === 'failed' ? '#ef4444' : task?.status === 'cancelled' ? '#94a3b8' : '' }}>
                             {displayPct}%
                         </span>
-                        <span className={styles.completeText}>{task?.status === 'failed' ? 'FAILED' : task?.status === 'cancelled' ? 'CANCELLED' : 'COMPLETE'}</span>
+                        <span className={styles.completeText}>
+                            {task?.status === 'failed' ? dict.processing.statusFailed 
+                             : task?.status === 'cancelled' ? dict.processing.statusCancelled 
+                             : dict.processing.statusComplete}
+                        </span>
                     </div>
                 </div>
             </div>
 
             <div className={styles.terminalContainer}>
                 <div className={styles.terminalHeader}>
-                    <span>Real-time Pipeline Logs</span>
+                    <span>{dict.processing.logsTitle}</span>
                     <span className={styles.terminalDot} style={{ backgroundColor: task?.status === 'processing' ? '#22c55e' : '#64748b' }}></span>
                 </div>
                 <div className={styles.terminalLogs} id="logContainer">
@@ -137,27 +143,27 @@ const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
                 {task?.status === 'processing' && (
                     <button className={styles.stopBtn} onClick={handleCancel}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
-                        Cancel Process
+                        {dict.processing.cancelBtn}
                     </button>
                 )}
 
                 {task?.status === 'completed' && (
                     <button className={styles.downloadBtn} onClick={handleDownload}>
                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                        Download DOCX
+                        {dict.processing.downloadBtn}
                     </button>
                 )}
                 
                 {(task?.status === 'completed' || task?.status === 'failed' || task?.status === 'cancelled') && (
                     <button className={styles.stopBtn} onClick={onClose} style={{ color: '#64748b', borderColor: '#e2e8f0' }}>
-                        Close
+                        {dict.processing.closeBtn}
                     </button>
                 )}
             </div>
 
             {task?.error && (
                 <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '1rem' }}>
-                    Error: {task.error}
+                    {dict.common.error}: {task.error}
                 </p>
             )}
         </div>

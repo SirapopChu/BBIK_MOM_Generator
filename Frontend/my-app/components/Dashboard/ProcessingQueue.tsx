@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styles from './ProcessingQueue.module.css';
+import { useI18n } from '@/contexts/LanguageContext';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -30,6 +31,7 @@ interface LogEntry {
 }
 
 const ProcessingQueue = () => {
+    const { dict } = useI18n();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -63,7 +65,7 @@ const ProcessingQueue = () => {
     };
 
     const handleCancelTask = async (taskId: string) => {
-        if (!confirm('Are you sure you want to cancel this task?')) return;
+        if (!confirm(dict.queue.cancelConfirm)) return;
         try {
             await fetch(`${API_BASE}/tasks/${taskId}/cancel`, { method: 'POST' });
             fetchTasks();
@@ -73,7 +75,7 @@ const ProcessingQueue = () => {
     };
 
     const handleDeleteTask = async (taskId: string) => {
-        if (!confirm('Remove this task from history?')) return;
+        if (!confirm(dict.queue.deleteConfirm)) return;
         try {
             await fetch(`${API_BASE}/tasks/${taskId}`, { method: 'DELETE' });
             if (selectedTaskId === taskId) setSelectedTaskId(null);
@@ -84,7 +86,7 @@ const ProcessingQueue = () => {
     };
 
     const handleClearHistory = async () => {
-        if (!confirm('Clear all completed/failed tasks from history?')) return;
+        if (!confirm(dict.queue.clearConfirm)) return;
         try {
             await fetch(`${API_BASE}/tasks`, { method: 'DELETE' });
             fetchTasks();
@@ -107,7 +109,7 @@ const ProcessingQueue = () => {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
         } catch (err) {
-            alert('Download failed. Result might have been cleared.');
+            alert(dict.queue.downloadFailed);
         }
     };
 
@@ -131,20 +133,20 @@ const ProcessingQueue = () => {
     const runningTasks = tasks.filter(t => t.status === 'processing' || t.status === 'queued');
 
     if (loading && tasks.length === 0) {
-        return <div style={{ padding: '2rem', textAlign: 'center' }}>Connecting to task service...</div>;
+        return <div style={{ padding: '2rem', textAlign: 'center' }}>{dict.common.loading}...</div>;
     }
 
     return (
         <div className={styles.container}>
             <div className={styles.header}>
                 <div>
-                    <h1 className={styles.welcomeText}>Processing Queue</h1>
-                    <p className={styles.subtitle}>Real-time status of AI meeting generation and historical logs.</p>
+                    <h1 className={styles.welcomeText}>{dict.queue.title}</h1>
+                    <p className={styles.subtitle}>{dict.queue.subtitle}</p>
                 </div>
                 {historyTasks.length > 0 && (
                     <button className={styles.clearHistoryBtn} onClick={handleClearHistory}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                        Clear History
+                        {dict.queue.clearHistory}
                     </button>
                 )}
             </div>
@@ -157,7 +159,7 @@ const ProcessingQueue = () => {
                     {activeTask ? (
                         <div className={styles.panelCard}>
                             <div className={styles.panelHeader}>
-                                <h3 className={styles.panelTitle}>Pipeline Status</h3>
+                                <h3 className={styles.panelTitle}>{dict.queue.pipelineStatus}</h3>
                                 <div className={styles.taskIdBadge}>{activeTask.id}</div>
                             </div>
                             
@@ -186,21 +188,21 @@ const ProcessingQueue = () => {
                         </div>
                     ) : (
                         <div className={styles.panelCard} style={{ textAlign: 'center', color: '#64748b', padding: '3rem' }}>
-                            Select a task to view its processing pipeline.
+                            {dict.dashboard.noTasks}
                         </div>
                     )}
 
                     {/* Active Queue List */}
                     <div className={styles.panelCard}>
                         <div className={styles.panelHeader}>
-                            <h3 className={styles.panelTitle}>Active Queue</h3>
-                            <span className={styles.queueCount}>{runningTasks.length} Running</span>
+                            <h3 className={styles.panelTitle}>{dict.queue.activeQueue}</h3>
+                            <span className={styles.queueCount}>{runningTasks.length} {dict.queue.running}</span>
                         </div>
 
                         <div className={styles.queueList}>
                             {runningTasks.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '0.875rem' }}>
-                                    No active tasks running. Start a new meeting to begin.
+                                    {dict.queue.noActive}
                                 </div>
                             ) : (
                                 runningTasks.map(task => (
@@ -231,7 +233,7 @@ const ProcessingQueue = () => {
                                             <button 
                                                 className={styles.cancelBtn} 
                                                 onClick={(e) => { e.stopPropagation(); handleCancelTask(task.id); }}
-                                                title="Cancel Task"
+                                                title={dict.queue.cancelBtn}
                                             >
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                             </button>
@@ -249,17 +251,17 @@ const ProcessingQueue = () => {
                     <div className={styles.logsCard}>
                         <div className={styles.panelHeader}>
                             <div>
-                                <h3 className={styles.panelTitle} style={{ color: 'white' }}>Processing Logs</h3>
-                                <p className={styles.panelSubtitle}>{selectedTaskId || 'Status Feed'}</p>
+                                <h3 className={styles.panelTitle} style={{ color: 'white' }}>{dict.queue.logsTitle}</h3>
+                                <p className={styles.panelSubtitle}>{selectedTaskId || dict.queue.statusFeed}</p>
                             </div>
                             {activeTask?.status === 'processing' && <div className={styles.pulseDot}></div>}
                         </div>
 
                         <div className={styles.logTerminal}>
                             {logs.length === 0 && selectedTaskId ? (
-                                <div style={{ color: '#475569' }}>Connecting to task logs...</div>
+                                <div style={{ color: '#475569' }}>{dict.common.loading}...</div>
                             ) : logs.length === 0 ? (
-                                <div style={{ color: '#475569' }}>No logs available.</div>
+                                <div style={{ color: '#475569' }}>{dict.queue.noActive}</div>
                             ) : (
                                 logs.map((log, i) => (
                                     <div key={i} className={styles.logLine}>
@@ -275,12 +277,12 @@ const ProcessingQueue = () => {
                     {/* History */}
                     <div className={styles.panelCard} style={{ marginTop: '1.5rem' }}>
                         <div className={styles.panelHeader}>
-                            <h3 className={styles.panelTitle}>Task History</h3>
+                            <h3 className={styles.panelTitle}>{dict.queue.taskHistory}</h3>
                         </div>
 
                         <div className={styles.historyList}>
                             {historyTasks.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8' }}>No history found.</div>
+                                <div style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8' }}>{dict.queue.noHistory}</div>
                             ) : (
                                 historyTasks.map(item => (
                                     <div 
