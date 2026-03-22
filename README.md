@@ -1,23 +1,86 @@
-# BBIK_MOM_Generator
+# BBIK MOM Generator
 
+**AI-Powered Professional Meeting Minutes Platform**
 
-### BackEnd
-###  install Backend
-    1.  cd Backend
+The BBIK MOM Generator is an enterprise-grade solution for automating the capture, transcription, and summarization of professional meetings. It leverages advanced Generative AI (Anthropic Claude & OpenAI Whisper) to produce structured, bilingual (Thai/English) meeting minutes formatted as professional DOCX documents.
 
-    2.  npm init -y
+---
 
-    3.  npm install express dotenv cors axios multer
+## 1. Key Features
 
-    4.  npx create-next-app@latest my-meeting-app --typescript --tailwind --eslint
+- **Professional Recording Dashboard:** Real-time audio visualization (WaveSurfer.js) and system/mic audio capture.
+- **Client-Side Compression:** FFmpeg WASM integration to compress audio before upload, ensuring high performance for long meetings.
+- **Bilingual Intelligence:** 100% Thai/English parity for both the UI and the generated AI summaries.
+- **Enterprise Security:** JWT-based authentication with strict data isolation for multi-tenant occupancy.
+- **Scalable Processing:** Redis-backed BullMQ task queue for asynchronous, high-reliability background processing.
+- **Automated Formatting:** Dynamic generation of BBIK-branded DOCX files with structured discussion tables and action items.
 
-    4.  npm install --save-dev nodemon
+---
 
-### install Frrontend
+## 2. Technology Stack
 
-    1.  cd Frontend
+| Layer | Technology |
+|---|---|
+| **Frontend** | Next.js 16 (App Router), TypeScript, Tailwind CSS |
+| **Backend API** | Node.js 21, Express 4 (ESM), JWT Auth |
+| **Database** | PostgreSQL 16 (Relational Persistence) |
+| **Worker Queue** | Redis 7, BullMQ (Asynchronous Tasks) |
+| **AI (Transcription)** | OpenAI Whisper (Large-v3/v2) |
+| **AI (Analysis)**| Anthropic Claude 3.5 Sonnet / Opus |
+| **Infrastructure** | Docker, Docker Compose (Multi-stage builds) |
 
-    2.  npx create-next-app@latest --typescript --tailwind --eslint
+---
 
+## 3. Documentation
 
+For detailed technical guides and architectural deep-dives, please refer to the `docs/` folder:
 
+- **[Master Handoff Guide](./docs/README.md)**: Entry point for new developers.
+- **[Architecture: Backend](./docs/ARCHITECTURE_BE.md)**: Database schema, worker patterns, and AI pipeline.
+- **[Architecture: Frontend](./docs/ARCHITECTURE_FE.md)**: Next.js structure, i18n system, and media hooks.
+- **[API Specification](./docs/API_SPEC.md)**: Complete endpoint mapping and payloads.
+- **[CI/CD Strategy](./docs/CICD.md)**: Automation workflows and testing infrastructure.
+- **[Project Roadmap](./docs/task.md)**: Current status and future milestones.
+
+---
+
+## 4. Getting Started
+
+### Prerequisites
+- Node.js 21+
+- Docker Desktop
+- API Keys: Anthropic (Claude) and OpenAI (Whisper)
+
+### Quick Start (Docker)
+The easiest way to run the entire stack is using Docker Compose:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/SirapopChu/BBIK_MOM_Generator.git
+cd BBIK_MOM_Generator
+
+# 2. Configure variables (Backend)
+cp Backend/.env.example Backend/.env
+# Fill in ANTHROPIC_API_KEY, OPENAI_API_KEY, and DATABASE_URL
+
+# 3. Launch the platform
+docker compose up --build
+```
+The application will be available at:
+- **Frontend:** `http://localhost:3000`
+- **Backend API:** `http://localhost:3001`
+
+---
+
+## 5. Development Roles
+
+| Role | Responsibility |
+|---|---|
+| **PMO Analysts** | Initiate meetings, capture audio, and approve AI-generated minutes. |
+| **System Admins**| Manage user roles and monitor processing queues. |
+| **Developers** | Maintain AI prompts, document templates, and system scalability. |
+
+---
+
+## 6. License & Compliance
+This software is internal property of BBIK Technology. Unauthorized distribution or reproduction is strictly prohibited.
