@@ -76,7 +76,16 @@ const MeetingRecord = () => {
             }
 
             const metadata = localStorage.getItem('meeting_metadata');
-            const result   = await api.processAudio(targetBlob, `${name}.mp3`, 'th', metadata);
+            const appModel = localStorage.getItem('app_llm_model');
+            const appLang  = localStorage.getItem('app_language');
+
+            const result = await api.processAudio(
+                targetBlob, 
+                `${name}.mp3`, 
+                appLang || 'th', 
+                metadata,
+                appModel || null
+            );
             
             if (result.taskId) setActiveTaskId(result.taskId);
         } catch (err: any) {

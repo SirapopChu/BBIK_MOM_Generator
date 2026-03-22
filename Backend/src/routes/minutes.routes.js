@@ -2,8 +2,8 @@ import { Router }                from 'express';
 import { upload }                from '../middleware/upload.js';
 import { generateMinutesText }   from '../services/llm.service.js';
 import { buildDocxBuffer }       from '../services/docx.service.js';
-import { transcribeAudio }       from '../services/transcription.service.js';
 import * as taskService          from '../services/task.service.js';
+import { enqueueAudioTask }      from '../services/queue.service.js';
 
 const router = Router();
 
@@ -11,10 +11,6 @@ const router = Router();
 
 /**
  * Safe JSON parse that returns null on failure.
- * Avoids duplicated try/catch blocks across route handlers.
- *
- * @param {string|undefined} raw
- * @returns {object|null}
  */
 function parseMetadata(raw) {
     if (!raw) return null;
@@ -23,76 +19,13 @@ function parseMetadata(raw) {
 }
 
 /**
- * Resolves DOCX output filename from optional user-supplied metadata.
- *
- * @param {string}      base
- * @param {object|null} meta
- * @returns {{ outputName: string, docName: string }}
+ * Resolves DOCX output filename.
  */
 function resolveFilenames(base, meta) {
     const docName    = meta?.title?.replace(/\s+/g, '_') ?? base;
     const outputName = `${docName}_meeting_minutes.docx`;
     return { docName, outputName };
 }
-
-/**
- * Named pipeline function for the full audio processing workflow.
- * Extracted from the anonymous IIFE that was previously inline in the route.
- * Runs asynchronously after the HTTP response (taskId) is already sent.
- *
- * @param {string}        taskId
- * @param {Express.Multer.File} file
- * @param {string}        language
- * @param {object|null}   metadata
- */
-async function runAudioPipeline(taskId, file, language, metadata) {
-    const checkCancelled = async () => {
-        const current = await taskService.getTaskById(taskId);
-        if (current?.status === 'cancelled') throw new Error('Task cancelled by user');
-    };
-
-    try {
-        // Step 1: Transcribe
-        await checkCancelled();
-        await taskService.updateTask(taskId, { currentStep: 'transcribe', progress: 10 });
-        await taskService.addLog(taskId, `Starting transcription for ${file.originalname}...`);
-
-        const transcriptResult = await transcribeAudio(
-            file.buffer, file.mimetype, file.originalname, language
-        );
-
-        await checkCancelled();
-        await taskService.addLog(taskId, `Transcription complete. Detected language: ${transcriptResult.language}`);
-
-        // Step 2: Analyze with Claude
-        await checkCancelled();
-        await taskService.updateTask(taskId, { currentStep: 'analyze', progress: 40 });
-        await taskService.addLog(taskId, 'Sending transcript to Claude AI for minute generation...');
-
-        const { result } = await generateMinutesText(transcriptResult.text);
-
-        await checkCancelled();
-        await taskService.addLog(taskId, 'Claude analysis complete.');
-
-        // Step 3: Build DOCX
-        await checkCancelled();
-        await taskService.updateTask(taskId, { currentStep: 'format', progress: 75 });
-        await taskService.addLog(taskId, 'Formatting and building DOCX document...');
-
-        const buffer = await buildDocxBuffer(result, metadata);
-
-        await checkCancelled();
-        await taskService.updateTask(taskId, { status: 'completed', progress: 100, currentStep: 'ready' }, buffer);
-        await taskService.addLog(taskId, 'Process completed! Document is ready for download.');
-
-    } catch (err) {
-        console.error(`[${new Date().toISOString()}] [Pipeline ${taskId}]`, err.message);
-        await taskService.updateTask(taskId, { status: 'failed', error: err.message });
-        await taskService.addLog(taskId, `ERROR: ${err.message}`);
-    }
-}
-
-// ── Routes ────────────────────────────────────────────────────────────────────
 
 /**
  * POST /api/minutes/generate
@@ -160,21 +93,28 @@ router.post('/export-docx', upload.single('transcript'), async (req, res, next) 
  * One-click full workflow: Transcribe -> Analyze -> DOCX
  * Returns: { taskId } immediately; processing continues in background.
  */
-router.post('/process-audio', upload.single('audio'), (req, res) => {
+router.post('/process-audio', upload.single('audio'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Audio file is required.' });
 
     const base     = req.file.originalname.replace(/\.(mp3|wav|m4a|webm)$/i, '');
     const language = (req.body.language || '').trim();
+    const model    = (req.body.model || '').trim();
     const metadata = parseMetadata(req.body.metadata);
 
-    taskService.createTask(base, 'full_workflow').then(taskId => {
-        // Respond immediately with taskId; pipeline runs in background.
+    try {
+        const taskId = await taskService.createTask(base, 'full_workflow');
+
+        // Respond immediately with taskId
         res.json({ taskId });
-        runAudioPipeline(taskId, req.file, language, metadata);
-    }).catch(err => {
-        console.error('Failed to create task:', err);
+
+        // Offload to background worker via BullMQ
+        await enqueueAudioTask(taskId, req.file.buffer, req.file.originalname, req.file.mimetype, language, metadata, model || null);
+        
+        await taskService.addLog(taskId, 'Task enqueued for background processing.');
+    } catch (err) {
+        console.error('Failed to initialize task:', err);
         res.status(500).json({ error: 'Failed to initialize processing task.' });
-    });
+    }
 });
 
 export default router;

@@ -72,11 +72,13 @@ export async function processAudio(
     filename:  string,
     language:  string  = 'th',
     metadata?: string | null,
+    model?:    string | null,
 ): Promise<ProcessAudioResult> {
     const form = new FormData();
     form.append('audio', audioBlob, filename);
     form.append('language', language);
     if (metadata) form.append('metadata', metadata);
+    if (model) form.append('model', model);
 
     const res = await fetch(`${BASE_URL}/api/minutes/process-audio`, { method: 'POST', body: form });
     await checkResponse(res);

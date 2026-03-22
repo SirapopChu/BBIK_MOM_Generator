@@ -264,7 +264,14 @@ export async function buildDocxBuffer(result, metadata = null) {
                 }),
                 new Paragraph({
                     alignment: AlignmentType.CENTER,
-                    children:  [DocxElementFactory.textRun('บันทึกโดย: PMO Analyst | จัดทำจาก Meeting Transcript', false, 9)],
+                    spacing: { before: 400 },
+                    children: [
+                        new TextRun({
+                            text: `บันทึกโดย: ${metadata?.app_pmo_name || 'PMO Analyst'} | จัดทำจาก Meeting Transcript`,
+                            size: 20,
+                            color: '64748b'
+                        }),
+                    ],
                 }),
             ],
         }],
