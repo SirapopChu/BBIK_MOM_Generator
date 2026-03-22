@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config/index.js';
 
+// ── System Prompt ─────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are a Senior PMO Analyst. Create bilingual (Thai/English) meeting minutes matching this exact template structure.
 
 INSTRUCTIONS:
@@ -53,24 +54,40 @@ Timeline: Thai / English
 --- ปิดการประชุม / Meeting Adjourned ---
 บันทึกโดย: PMO Analyst | จัดทำจาก Meeting Transcript`;
 
-const client = new Anthropic({ apiKey: config.anthropic.apiKey });
+// ── LLM Config ────────────────────────────────────────────────────────────────
+const MAX_TOKENS = 6000;
+
+// Strategy Pattern: AnthropicProvider implements the LLM provider interface.
+// To swap providers, create a new object implementing { generate(transcript) }
+// and replace `provider` in generateMinutesText.
+const AnthropicProvider = {
+    _client: new Anthropic({ apiKey: config.anthropic.apiKey }),
+
+    async generate(transcript) {
+        const message = await this._client.messages.create({
+            model:       config.anthropic.model,
+            max_tokens:  MAX_TOKENS,
+            temperature: 0,
+            system:      SYSTEM_PROMPT,
+            messages:    [{ role: 'user', content: transcript }],
+        });
+        return {
+            result: message.content[0].text,
+            usage:  message.usage,
+        };
+    },
+};
+
+// Active provider — swap this reference to change the LLM backend at runtime.
+const provider = AnthropicProvider;
 
 /**
- * Sends the transcript to Claude and returns the raw structured response text.
+ * Sends the transcript to the configured LLM provider and returns the
+ * structured minutes text plus token usage stats.
+ *
  * @param {string} transcript
  * @returns {Promise<{ result: string, usage: object }>}
  */
 export async function generateMinutesText(transcript) {
-    const message = await client.messages.create({
-        model:       config.anthropic.model,
-        max_tokens:  6000,
-        temperature: 0,
-        system:      SYSTEM_PROMPT,
-        messages:    [{ role: 'user', content: transcript }],
-    });
-
-    return {
-        result: message.content[0].text,
-        usage:  message.usage,
-    };
+    return provider.generate(transcript);
 }
