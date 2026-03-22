@@ -1141,6 +1141,11 @@
     border: 1px solid #f1f5f9;
 }
 
+.previewDetails {
+    display: flex;
+    flex-direction: column;
+}
+
 .previewIcon {
     width: 64px;
     height: 64px;
