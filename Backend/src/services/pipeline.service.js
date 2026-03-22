@@ -15,9 +15,9 @@ import * as taskService          from './task.service.js';
  * @param {object|null}   metadata
  * @param {string|null}   model
  */
-export async function runAudioPipeline(taskId, file, language, metadata, model = null) {
+export async function runAudioPipeline(taskId, userId, file, language, metadata, model = null) {
     const checkCancelled = async () => {
-        const current = await taskService.getTaskById(taskId);
+        const current = await taskService.getTaskById(taskId, userId);
         if (current?.status === 'cancelled') throw new Error('Task cancelled by user');
     };
 

@@ -3,12 +3,12 @@ import { query } from '../config/database.js';
 class TaskRepository {
     // ── Factories ─────────────────────────────────────────────
 
-    async create(title, type = 'docx_generation') {
+    async create(title, userId, type = 'docx_generation') {
         const taskId = `TASK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         
         await query(
-            'INSERT INTO tasks (id, title, type, status, current_step, progress) VALUES ($1, $2, $3, $4, $5, $6)',
-            [taskId, title, type, 'processing', 'upload', 5]
+            'INSERT INTO tasks (id, user_id, title, type, status, current_step, progress) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [taskId, userId, title, type, 'processing', 'upload', 5]
         );
 
         await this.addLog(taskId, `Task '${title}' initialized.`);
@@ -17,13 +17,13 @@ class TaskRepository {
 
     // ── Reads ─────────────────────────────────────────────────
 
-    async getAll() {
-        const { rows } = await query('SELECT * FROM tasks ORDER BY created_at DESC');
+    async getAll(userId) {
+        const { rows } = await query('SELECT * FROM tasks WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
         return rows.map(this._mapTask);
     }
 
-    async getById(taskId) {
-        const { rows } = await query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+    async getById(taskId, userId) {
+        const { rows } = await query('SELECT * FROM tasks WHERE id = $1 AND user_id = $2', [taskId, userId]);
         return rows[0] ? this._mapTask(rows[0]) : undefined;
     }
 
@@ -96,13 +96,14 @@ class TaskRepository {
         await this.addLog(taskId, 'Task was cancelled by the user.');
     }
 
-    async delete(taskId) {
+    async deleteTask(taskId) {
+        // delete is already checked in routes by getTaskById(taskId, userId)
         const { rowCount } = await query('DELETE FROM tasks WHERE id = $1', [taskId]);
         return rowCount > 0;
     }
 
-    async clearHistory() {
-        await query("DELETE FROM tasks WHERE status NOT IN ('processing', 'queued')");
+    async clearHistory(userId) {
+        await query("DELETE FROM tasks WHERE user_id = $1 AND status NOT IN ('processing', 'queued')", [userId]);
     }
 
     _mapTask(row) {

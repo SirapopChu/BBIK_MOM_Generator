@@ -212,10 +212,10 @@ const MeetingRecord = () => {
                         <div className={styles.recordingTopLeft}>
                             <div className={styles.liveBadge}>
                                 <span className={styles.liveDot}></span>
-                                {recorder.isPaused ? 'PAUSED' : 'LIVE RECORDING'}
+                                {recorder.isPaused ? dict.record.statusPaused : dict.record.statusLive}
                             </div>
                             <div className={styles.topDivider}></div>
-                            <div className={styles.topTitle}>Recording Active</div>
+                            <div className={styles.topTitle}>{dict.record.activeTitle}</div>
                         </div>
                     </div>
 
@@ -224,7 +224,7 @@ const MeetingRecord = () => {
                             <div className={styles.recordingMainLeft}>
                                 <div className={styles.timerCardPro}>
                                     <div className={styles.timerProText}>{formatTime(recorder.timer)}</div>
-                                    <div className={styles.timerProLabel}>ELAPSED TIME</div>
+                                    <div className={styles.timerProLabel}>{dict.record.elapsedTime}</div>
 
                                     <div
                                         ref={recorder.waveContainerRef}
@@ -237,13 +237,13 @@ const MeetingRecord = () => {
                                     <div className={styles.transcriptionProHeader}>
                                         <div className={styles.transcriptionProTitle}>
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
-                                            LIVE AI TRANSCRIPTION
+                                            {dict.record.aiTranscription}
                                         </div>
                                     </div>
                                     <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
                                         {recorder.isPaused
-                                            ? 'Recording paused.'
-                                            : <>Listening for speech... <span className={styles.cursorBlink}>_</span></>
+                                            ? dict.record.statusPaused
+                                            : <>{dict.record.listening} <span className={styles.cursorBlink}>_</span></>
                                         }
                                     </div>
                                 </div>
@@ -253,12 +253,12 @@ const MeetingRecord = () => {
                                 <div className={styles.healthPanelPro}>
                                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                        AUDIO HEALTH
+                                        {dict.record.audioHealth}
                                     </div>
 
                                     <div className={styles.healthLevel}>
                                         <div className={styles.healthTitle}>
-                                            <span>INPUT GAIN</span>
+                                            <span>{dict.record.inputGain}</span>
                                             <span>{Math.round(Math.min(100, (recorder.volume / 128) * 100))}%</span>
                                         </div>
                                         <div className={styles.healthBar}>
@@ -277,7 +277,7 @@ const MeetingRecord = () => {
 
                                     <div className={styles.healthLevel}>
                                         <div className={styles.healthTitle}>
-                                            <span>NOISE FLOOR</span>
+                                            <span>{dict.record.noiseFloor}</span>
                                             <span>14%</span>
                                         </div>
                                         <div className={styles.healthBar}>
@@ -290,8 +290,8 @@ const MeetingRecord = () => {
                                     <div className={styles.healthInfoBox}>
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" style={{ flexShrink: 0, marginTop: '2px' }}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                                         <div>
-                                            <div className={styles.healthInfoTitle}>Signal is Optimal</div>
-                                            <div className={styles.healthInfoDesc}>Audio levels are within professional ranges. Speech clarity is high.</div>
+                                            <div className={styles.healthInfoTitle}>{dict.record.signalOptimal}</div>
+                                            <div className={styles.healthInfoDesc}>{dict.record.signalDesc}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -305,7 +305,7 @@ const MeetingRecord = () => {
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
                             </div>
                             <div className={styles.footerDeviceT}>
-                                <div className={styles.footerDeviceL}>INPUT DEVICE</div>
+                                <div className={styles.footerDeviceL}>{dict.record.inputDevice}</div>
                                 <select
                                     className={styles.deviceSelect}
                                     value={recorder.selectedDeviceId}
@@ -322,7 +322,7 @@ const MeetingRecord = () => {
                         </div>
 
                         <div className={styles.footerControls}>
-                            <button className={styles.btnPausePro} onClick={handlePauseResume} title={recorder.isPaused ? 'Resume' : 'Pause'}>
+                            <button className={styles.btnPausePro} onClick={handlePauseResume} title={recorder.isPaused ? dict.record.resume : dict.record.pause}>
                                 {recorder.isPaused ? (
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#818cf8" stroke="none"><polygon points="5,3 19,12 5,21" /></svg>
                                 ) : (
@@ -332,12 +332,12 @@ const MeetingRecord = () => {
                             <button className={styles.btnStopPro} onClick={handleStopRecording}>
                                 <div className={styles.stopSquare}></div>
                             </button>
-                            <span className={styles.stopLabelPro}>STOP</span>
+                            <span className={styles.stopLabelPro}>{dict.record.stop}</span>
                         </div>
 
                         <button className={styles.btnAiProcessingPro} onClick={handleStopRecording}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
-                            Finish & Process
+                            {dict.record.processBtn}
                         </button>
                     </div>
                 </div>
@@ -349,7 +349,7 @@ const MeetingRecord = () => {
                     <div className={styles.stepperContainer}>
                         <div className={styles.step}>
                             <div className={`${styles.stepCircle} ${styles.activeStepCircle}`} style={{ backgroundColor: 'white', color: '#6366f1' }}>1</div>
-                            <div className={styles.stepLabel}>SETUP</div>
+                            <div className={styles.stepLabel}>{dict.setup.stepSetup}</div>
                         </div>
                         <div className={styles.stepLine}></div>
                         <div className={styles.step}>
@@ -399,7 +399,7 @@ const MeetingRecord = () => {
                                 </div>
 
                                 <div className={styles.timer}>00:00:00</div>
-                                <div className={styles.timerLabel}>ELAPSED TIME</div>
+                                <div className={styles.timerLabel}>{dict.record.elapsedTime}</div>
 
                                 <button className={styles.micButton} onClick={handleRecordToggle}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
@@ -435,7 +435,7 @@ const MeetingRecord = () => {
                                                     <span className={styles.uploadedFileName}>{file.name}</span>
                                                     <div className={styles.uploadedFileActions}>
                                                         <button className={styles.transcribeFileBtn} onClick={(e) => { e.stopPropagation(); handleTranscribeUploadedAudio(file); }}>
-                                                            Process
+                                                            {dict.record.processBtn.split(' ')[0]}
                                                         </button>
                                                         <button className={styles.removeFileBtn} onClick={(e) => { e.stopPropagation(); removeAudioFile(idx); }}>×</button>
                                                     </div>
@@ -472,7 +472,7 @@ const MeetingRecord = () => {
                                     disabled={uploadedTranscribeFiles.length === 0}
                                     style={{ width: '100%', marginTop: '20px' }}
                                 >
-                                    Generate Minutes from Transcript
+                                    {dict.common.exportMinutes}
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                                 </button>
                             </div>
@@ -486,7 +486,7 @@ const MeetingRecord = () => {
                 <div className={styles.modalOverlay}>
                     <div className={styles.saveModal}>
                         <div className={styles.saveModalHeader}>
-                            <h2 className={styles.saveModalTitle}>Recording Complete</h2>
+                            <h2 className={styles.saveModalTitle}>{dict.record.saveTitle}</h2>
                             <button className={styles.closeModalBtn} onClick={handleCloseSaveModal}>×</button>
                         </div>
 
@@ -496,7 +496,7 @@ const MeetingRecord = () => {
                                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="1.5"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
                                 </div>
                                 <div className={styles.previewDetails}>
-                                    <div className={styles.previewName}>{formatTime(recorder.timer)} Duration</div>
+                                    <div className={styles.previewName}>{formatTime(recorder.timer)} {dict.record.duration}</div>
                                     <div className={styles.previewSize}>{(recorder.recordedBlob!.size / (1024 * 1024)).toFixed(2)} MB</div>
                                     {transcript.transcriptResult && (
                                         <div className={styles.transcriptBadge}>Transcribed</div>
@@ -505,7 +505,7 @@ const MeetingRecord = () => {
                             </div>
 
                             <div className={styles.inputGroup}>
-                                <label className={styles.inputLabel}>File Name</label>
+                                <label className={styles.inputLabel}>{dict.record.fileName}</label>
                                 <input
                                     type="text"
                                     className={styles.fileNameInput}
@@ -530,19 +530,19 @@ const MeetingRecord = () => {
                             {transcript.transcriptError && <div className={styles.transcriptError}>{transcript.transcriptError}</div>}
 
                             <div className={styles.saveActions}>
-                                <button className={styles.btnSecondary} onClick={handleCloseSaveModal}>Discard</button>
+                                <button className={styles.btnSecondary} onClick={handleCloseSaveModal}>{dict.record.discard}</button>
                                 
                                 {!transcript.transcriptResult && !transcript.isTranscribing && (
                                     <button className={styles.btnSecondary} onClick={handleTranscribe}>
-                                        Preview Transcript
+                                        {dict.record.previewTranscript}
                                     </button>
                                 )}
 
                                 <button className={styles.btnWhisper} onClick={handleProcessRecordedAudio} disabled={isProcessing}>
-                                    {isProcessing ? 'Processing...' : 'Process & Generate Document'}
+                                    {isProcessing ? dict.common.loading : dict.record.processGen}
                                 </button>
                                 
-                                <button className={styles.btnPrimary} onClick={handleDownloadMP3}>Save MP3</button>
+                                <button className={styles.btnPrimary} onClick={handleDownloadMP3}>{dict.record.saveMp3}</button>
                             </div>
                         </div>
                     </div>

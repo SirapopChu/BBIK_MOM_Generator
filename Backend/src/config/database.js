@@ -21,8 +21,17 @@ export async function initDb() {
   const client = await pool.connect();
   try {
     await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        name TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
         title TEXT NOT NULL,
         type TEXT NOT NULL,
         status TEXT NOT NULL,
@@ -32,6 +41,14 @@ export async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         completed_at TIMESTAMP
       );
+
+      -- Migration: Add user_id to tasks if it doesn't exist
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tasks' AND column_name='user_id') THEN
+          ALTER TABLE tasks ADD COLUMN user_id INTEGER REFERENCES users(id);
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS task_logs (
         id SERIAL PRIMARY KEY,

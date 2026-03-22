@@ -17,7 +17,7 @@ initDb().catch(console.error);
 const worker = new Worker(
   'audio-pipeline',
   async (job) => {
-    const { taskId, file, language, metadata, model } = job.data;
+    const { taskId, userId, file, language, metadata, model } = job.data;
     
     // De-serialize the buffer from Base64
     const fileData = {
@@ -25,8 +25,8 @@ const worker = new Worker(
       buffer: Buffer.from(file.buffer, 'base64'),
     };
 
-    console.log(`[Worker] Starting job ${job.id} (Task ${taskId}) [Model: ${model || 'default'}]`);
-    await runAudioPipeline(taskId, fileData, language, metadata, model);
+    console.log(`[Worker] Starting job ${job.id} (Task ${taskId}) [User: ${userId}] [Model: ${model || 'default'}]`);
+    await runAudioPipeline(taskId, userId, fileData, language, metadata, model);
     console.log(`[Worker] Job ${job.id} completed.`);
   },
   {

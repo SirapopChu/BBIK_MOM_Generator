@@ -5,7 +5,7 @@ const router = Router();
 
 // GET /api/tasks - List all tasks (active & historical)
 router.get('/', async (req, res) => {
-    const tasks = await taskService.getTasks();
+    const tasks = await taskService.getTasks(req.user.id);
     res.json({ tasks });
 });
 
@@ -23,7 +23,7 @@ router.get('/:id/logs', async (req, res) => {
 
 // GET /api/tasks/:id - Specific task status
 router.get('/:id', async (req, res) => {
-    const task = await taskService.getTaskById(req.params.id);
+    const task = await taskService.getTaskById(req.params.id, req.user.id);
     if (!task) return res.status(404).json({ error: 'Task not found' });
     res.json({ task });
 });
@@ -31,9 +31,9 @@ router.get('/:id', async (req, res) => {
 // GET /api/tasks/:id/download - Download specific result of a task
 router.get('/:id/download', async (req, res) => {
     const taskId = req.params.id;
-    const task = await taskService.getTaskById(taskId);
+    const task = await taskService.getTaskById(taskId, req.user.id);
     const result = await taskService.getTaskResult(taskId);
-
+    
     if (!task || !result) {
         return res.status(404).json({ error: 'Result not found or task not finished' });
     }
@@ -54,13 +54,16 @@ router.post('/:id/cancel', async (req, res) => {
 
 // DELETE /api/tasks/:id
 router.delete('/:id', async (req, res) => {
+    const task = await taskService.getTaskById(req.params.id, req.user.id);
+    if (!task) return res.status(404).json({ error: 'Task not found or access denied' });
+    
     const deleted = await taskService.deleteTask(req.params.id);
     res.json({ success: deleted });
 });
 
 // DELETE /api/tasks - Clear history
 router.delete('/', async (req, res) => {
-    await taskService.clearHistory();
+    await taskService.clearHistory(req.user.id);
     res.json({ success: true });
 });
 

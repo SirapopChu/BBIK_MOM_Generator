@@ -1,31 +1,17 @@
-"use client";
-
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import styles from './LandingContent.module.css';
-import { useI18n } from '@/contexts/LanguageContext';
-
-const API_BASE = 'http://localhost:3001/api';
-
-interface Task {
-    id: string;
-    title: string;
-    status: 'processing' | 'completed' | 'failed' | 'queued';
-    progress: number;
-    timestamp: string;
-}
+import { useAuth } from '@/contexts/AuthContext';
+import { getTasks } from '@/services/api';
 
 const LandingContent = () => {
     const router = useRouter();
     const { dict } = useI18n();
+    const { user } = useAuth();
     const [tasks, setTasks] = useState<Task[]>([]);
 
     useEffect(() => {
         const fetchTasks = async () => {
             try {
-                const res = await fetch(`${API_BASE}/tasks`);
-                const data = await res.json();
-                setTasks(data.tasks);
+                const data = await getTasks();
+                setTasks(data);
             } catch (err) {
                 console.error('[LandingFetch]', err);
             }
@@ -36,12 +22,12 @@ const LandingContent = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const activeTasks = tasks.filter(t => t.status === 'processing' || t.status === 'queued');
-    const recentTasks = tasks.filter(t => t.status === 'completed' || t.status === 'failed').slice(0, 5);
+    const activeTasks = (tasks || []).filter(t => t.status === 'processing' || t.status === 'queued');
+    const recentTasks = (tasks || []).filter(t => t.status === 'completed' || t.status === 'failed').slice(0, 5);
 
     return (
         <div className={styles.container}>
-            <h1 className={styles.welcomeText}>{dict.landing.welcomePrefix}, Tipakorn!</h1>
+            <h1 className={styles.welcomeText}>{dict.landing.welcomePrefix}, {user?.name || 'User'}!</h1>
 
             <div className={styles.topCards}>
                 <div className={`${styles.actionCard} ${styles.primaryCard}`} onClick={() => router.push('/dashboard/new-meeting')} style={{ cursor: 'pointer' }}>

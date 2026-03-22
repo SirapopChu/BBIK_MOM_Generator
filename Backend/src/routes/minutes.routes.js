@@ -61,7 +61,7 @@ router.post('/export-docx', upload.single('transcript'), async (req, res, next) 
         const metadata = parseMetadata(req.body.metadata);
         const { outputName } = resolveFilenames(base, metadata);
 
-        taskId = await taskService.createTask(base, 'docx_generation');
+        taskId = await taskService.createTask(base, req.user.id, 'docx_generation');
         await taskService.addLog(taskId, 'Starting Claude analysis and document generation.');
         await taskService.updateTask(taskId, { currentStep: 'analyze', progress: 20 });
         await taskService.addLog(taskId, 'Contacting Anthropic Claude API...');
@@ -102,13 +102,13 @@ router.post('/process-audio', upload.single('audio'), async (req, res) => {
     const metadata = parseMetadata(req.body.metadata);
 
     try {
-        const taskId = await taskService.createTask(base, 'full_workflow');
+        const taskId = await taskService.createTask(base, req.user.id, 'full_workflow');
 
         // Respond immediately with taskId
         res.json({ taskId });
 
         // Offload to background worker via BullMQ
-        await enqueueAudioTask(taskId, req.file.buffer, req.file.originalname, req.file.mimetype, language, metadata, model || null);
+        await enqueueAudioTask(taskId, req.user.id, req.file.buffer, req.file.originalname, req.file.mimetype, language, metadata, model || null);
         
         await taskService.addLog(taskId, 'Task enqueued for background processing.');
     } catch (err) {

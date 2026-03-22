@@ -30,11 +30,12 @@ export const audioPipelineQueue = new Queue('audio-pipeline', {
  * @param {string} language 
  * @param {object|null} metadata 
  */
-export async function enqueueAudioTask(taskId, buffer, filename, mimetype, language, metadata, model = null) {
+export async function enqueueAudioTask(taskId, userId, buffer, filename, mimetype, language, metadata, model = null) {
   return await audioPipelineQueue.add(
     'process-audio',
     {
       taskId,
+      userId,
       file: {
         buffer: buffer.toString('base64'),
         originalname: filename,
