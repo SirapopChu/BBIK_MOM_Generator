@@ -156,8 +156,18 @@ export interface TaskStatus {
     status:      'processing' | 'completed' | 'failed' | 'cancelled' | 'queued';
     currentStep: string;
     progress:    number;
+    timestamp:   string;
     completedAt: string | null;
     error:       string | null;
+}
+
+export async function getTasks(): Promise<TaskStatus[]> {
+    const res = await fetch(`${BASE_URL}/api/tasks`, {
+        headers: { ...getAuthHeader() }
+    });
+    await checkResponse(res);
+    const data = await res.json();
+    return data.tasks;
 }
 
 export async function getTask(taskId: string): Promise<TaskStatus> {
