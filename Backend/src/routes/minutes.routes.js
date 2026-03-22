@@ -159,7 +159,16 @@ router.post('/process-audio', upload.single('audio'), async (req, res) => {
             taskService.updateTask(taskId, { currentStep: 'format', progress: 75 });
             taskService.addLog(taskId, 'Formatting and building DOCX document...');
 
-            const buffer = await buildDocxBuffer(result);
+            let metadata = null;
+            if (req.body.metadata) {
+                try {
+                    metadata = JSON.parse(req.body.metadata);
+                } catch (e) {
+                    console.warn('Failed to parse metadata', e.message);
+                }
+            }
+
+            const buffer = await buildDocxBuffer(result, metadata);
 
             checkCancelled();
             // FINISH
