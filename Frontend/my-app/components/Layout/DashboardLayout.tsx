@@ -25,7 +25,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     {children}
                 </main>
                 <footer className={styles.footer}>
-                    © 2024 Bluebik Group Public Company Limited - DX Business Unit (iTPM)
+                    © 2026 Bluebik Group Public Company Limited - DX Business Unit (iTPM)
                 </footer>
             </div>
         </div>

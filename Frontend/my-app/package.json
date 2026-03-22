@@ -9,7 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "autoprefixer": "^10.4.27",
+    "js-cookie": "^3.0.5",
     "next": "16.1.6",
     "postcss": "^8.5.8",
     "react": "19.2.3",
@@ -17,7 +20,9 @@
     "wavesurfer.js": "^7.12.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.2.1",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

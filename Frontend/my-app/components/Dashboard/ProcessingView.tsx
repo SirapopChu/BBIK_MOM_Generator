@@ -2,152 +2,170 @@
 
 import React, { useState, useEffect } from 'react';
 import styles from './ProcessingView.module.css';
+import { useI18n } from '@/contexts/LanguageContext';
 
 interface ProcessingViewProps {
+    taskId: string;
     onClose?: () => void;
 }
 
-const ProcessingView: React.FC<ProcessingViewProps> = ({ onClose }) => {
-    const [progress, setProgress] = useState(0);
-    const [isComplete, setIsComplete] = useState(false);
-    const [messageIndex, setMessageIndex] = useState(0);
+const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
+    const { dict } = useI18n();
+    const [task, setTask] = useState<any>(null);
+    const [logs, setLogs] = useState<any[]>([]);
+    const [error, setError] = useState<string | null>(null);
 
-    const messages = [
-        "Uploading file...",
-        "Wait a sec ...",
-        "Wait a sec ...",
-        "Wait a sec ...",
-        "Analyzing audio content...",
-        "Identifying key speakers...",
-        "Transcribing meeting dialogue...",
-        "Capturing action items...",
-        "Synthesizing meeting summary...",
-        "Polishing final results...",
-        "Wait a sec ...",
-        "Wait a sec ...",
-        "Wait a sec ...",
-        "Wait a sec ..."
-    ];
-
+    // Poll for task status
     useEffect(() => {
-        const duration = 55000; // 55 seconds
-        const interval = 50; // Update every 50ms for smoother animation
-        const steps = duration / interval;
-        const increment = 100 / steps;
+        if (!taskId) return;
 
-        const timer = setInterval(() => {
-            setProgress((prev) => {
-                if (prev >= 100) {
-                    clearInterval(timer);
-                    setIsComplete(true);
-                    return 100;
+        const fetchStatus = async () => {
+            try {
+                const res = await fetch(`http://localhost:3001/api/tasks/${taskId}`);
+                const data = await res.json();
+                if (data.task) {
+                    setTask(data.task);
+                    if (data.task.status === 'completed' || data.task.status === 'failed') {
+                        clearInterval(interval);
+                    }
                 }
-                return prev + increment;
-            });
-        }, interval);
-
-        // Cycle through messages based on progress
-        const messageInterval = setInterval(() => {
-            setMessageIndex((prev) => (prev + 1) % messages.length);
-        }, 5000); // Change message every 5 seconds
-
-        return () => {
-            clearInterval(timer);
-            clearInterval(messageInterval);
+            } catch (err) {
+                console.error('Polling error', err);
+            }
         };
-    }, []);
 
-    const handleStop = () => {
-        if (confirm("Are you sure you want to stop processing?")) {
+        const fetchLogs = async () => {
+            try {
+                const res = await fetch(`http://localhost:3001/api/tasks/${taskId}/logs`);
+                const data = await res.json();
+                if (data.logs) setLogs(data.logs);
+            } catch (err) {}
+        };
+
+        const interval = setInterval(() => {
+            fetchStatus();
+            fetchLogs();
+        }, 1500);
+
+        fetchStatus();
+        fetchLogs();
+        return () => clearInterval(interval);
+    }, [taskId]);
+
+    const handleDownload = async () => {
+        if (!taskId) return;
+        try {
+            const res = await fetch(`http://localhost:3001/api/tasks/${taskId}/download`);
+            if (!res.ok) throw new Error('Download failed');
+            
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            const filename = task?.title ? `${task.title.replace(/\s+/g, '_')}.docx` : 'meeting_minutes.docx';
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (err) {
+            console.error('Download error:', err);
+            alert(dict.common.loading); // Falling back or using a general error if available
+        }
+    };
+
+    const handleCancel = async () => {
+        if (!taskId) return;
+        if (!confirm(dict.processing.cancelBtn + '?')) return;
+        try {
+            await fetch(`http://localhost:3001/api/tasks/${taskId}/cancel`, { method: 'POST' });
+            onClose?.();
+        } catch (err) {
+            console.error('Cancel error', err);
             onClose?.();
         }
     };
 
-    // Helper to format percentage from 0-100 to conic-gradient degrees (0-360)
-    const progressDegrees = (progress / 100) * 360;
+    const displayPct = task?.progress ?? 0;
+    const currentStepLabel = task?.status === 'failed' ? dict.processing.failed 
+                           : task?.status === 'completed' ? dict.processing.complete
+                           : task?.status === 'cancelled' ? dict.processing.cancelled
+                           : task ? `${dict.processing.step}: ${task.currentStep || dict.processing.initializing}` 
+                           : dict.processing.initializing;
 
-    if (isComplete) {
-        return (
-            <div className={styles.processingOverlay}>
-                <div className={styles.resultCard}>
-                    <div className={styles.iconSuccess}>
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    </div>
-                    <h2 className={styles.resultTitle}>Processing Complete</h2>
-                    <p className={styles.resultDesc}>Your meeting summary and transcript are ready.</p>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', marginBottom: '2rem' }}>
-                        {/* PDF File */}
-                        <div className={styles.fileCard}>
-                            <div style={{ backgroundColor: '#fee2e2', color: '#ef4444', padding: '0.5rem', borderRadius: '8px' }}>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <div className={styles.fileName}>20260313_TEST_weekly_working_11_tactiq.pdf</div>
-                                <a 
-                                    href="/20260313_TEST_weekly_working_11_tactiq.pdf"
-                                    download="20260313_TEST_weekly_working_11_tactiq.pdf"
-                                    style={{ fontSize: '0.75rem', color: '#6366f1', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}
-                                >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                                    DOWNLOAD PDF
-                                </a>
-                            </div>
-                        </div>
-
-                        {/* DOCX File */}
-                        <div className={styles.fileCard}>
-                            <div style={{ backgroundColor: '#e0f2fe', color: '#0ea5e9', padding: '0.5rem', borderRadius: '8px' }}>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M12 18h.01"></path><path d="M10 12h4"></path><path d="M10 16h4"></path></svg>
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <div className={styles.fileName}>20260313_TEST_weekly_working.docx</div>
-                                <a 
-                                    href="/20260313_TEST_weekly_working.docx"
-                                    download="20260313_TEST_weekly_working.docx"
-                                    style={{ fontSize: '0.75rem', color: '#0ea5e9', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}
-                                >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                                    DOWNLOAD DOCX
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button 
-                        className={styles.downloadBtn}
-                        onClick={onClose}
-                    >
-                        Done & Close
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    const progressDeg = (displayPct / 100) * 360;
 
     return (
         <div className={styles.processingOverlay}>
             <div className={styles.outerCircle}></div>
             <div className={styles.innerCircleSmall}></div>
-            
-            <h1 className={styles.title} key={messageIndex}>{messages[messageIndex]}</h1>
-            
+
+            <h1 className={styles.title}>{currentStepLabel}</h1>
+
             <div className={styles.progressContainer}>
-                <div 
-                    className={styles.circularProgress} 
-                    style={{ '--progress': `${progressDegrees}deg` } as React.CSSProperties}
+                <div
+                    className={styles.circularProgress}
+                    style={{ 
+                        '--progress': `${progressDeg}deg`,
+                        borderColor: task?.status === 'failed' ? '#ef4444' : task?.status === 'cancelled' ? '#94a3b8' : '#6366f1'
+                    } as React.CSSProperties}
                 >
                     <div className={styles.circularProgressInner}>
-                        <span className={styles.percentage}>{Math.floor(progress)}%</span>
-                        <span className={styles.completeText}>COMPLETE</span>
+                        <span className={styles.percentage} style={{ color: task?.status === 'failed' ? '#ef4444' : task?.status === 'cancelled' ? '#94a3b8' : '' }}>
+                            {displayPct}%
+                        </span>
+                        <span className={styles.completeText}>
+                            {task?.status === 'failed' ? dict.processing.statusFailed 
+                             : task?.status === 'cancelled' ? dict.processing.statusCancelled 
+                             : dict.processing.statusComplete}
+                        </span>
                     </div>
                 </div>
             </div>
 
-            <button className={styles.stopBtn} onClick={handleStop}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
-                Stop Processing
-            </button>
+            <div className={styles.terminalContainer}>
+                <div className={styles.terminalHeader}>
+                    <span>{dict.processing.logsTitle}</span>
+                    <span className={styles.terminalDot} style={{ backgroundColor: task?.status === 'processing' ? '#22c55e' : '#64748b' }}></span>
+                </div>
+                <div className={styles.terminalLogs} id="logContainer">
+                    {logs.map((log, i) => (
+                        <div key={i} className={styles.logLine}>
+                            <span className={styles.logTime}>[{log.time}]</span> {log.msg}
+                        </div>
+                    ))}
+                    {task?.status === 'processing' && <div className={styles.logLine}><span className={styles.logBlink}>_</span></div>}
+                </div>
+            </div>
+
+            <div className={styles.actionRow} style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
+                {task?.status === 'processing' && (
+                    <button className={styles.stopBtn} onClick={handleCancel}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+                        {dict.processing.cancelBtn}
+                    </button>
+                )}
+
+                {task?.status === 'completed' && (
+                    <button className={styles.downloadBtn} onClick={handleDownload}>
+                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        {dict.processing.downloadBtn}
+                    </button>
+                )}
+                
+                {(task?.status === 'completed' || task?.status === 'failed' || task?.status === 'cancelled') && (
+                    <button className={styles.stopBtn} onClick={onClose} style={{ color: '#64748b', borderColor: '#e2e8f0' }}>
+                        {dict.processing.closeBtn}
+                    </button>
+                )}
+            </div>
+
+            {task?.error && (
+                <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '1rem' }}>
+                    {dict.common.error}: {task.error}
+                </p>
+            )}
         </div>
     );
 };
