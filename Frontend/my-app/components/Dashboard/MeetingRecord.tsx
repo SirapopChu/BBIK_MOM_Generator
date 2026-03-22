@@ -198,6 +198,7 @@ const MeetingRecord = () => {
             {isProcessing && (
                 <ProcessingView
                     taskId={activeTaskId || ''}
+                    localProgressMsg={compressionProgress || ''}
                     onClose={() => {
                         setIsProcessing(false);
                         setActiveTaskId(null);

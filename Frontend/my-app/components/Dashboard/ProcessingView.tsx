@@ -4,12 +4,15 @@ import React, { useState, useEffect } from 'react';
 import styles from './ProcessingView.module.css';
 import { useI18n } from '@/contexts/LanguageContext';
 
+import * as api from '../../services/api';
+
 interface ProcessingViewProps {
     taskId: string;
     onClose?: () => void;
+    localProgressMsg?: string;
 }
 
-const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
+const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose, localProgressMsg }) => {
     const { dict } = useI18n();
     const [task, setTask] = useState<any>(null);
     const [logs, setLogs] = useState<any[]>([]);
@@ -21,11 +24,10 @@ const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
 
         const fetchStatus = async () => {
             try {
-                const res = await fetch(`http://localhost:3001/api/tasks/${taskId}`);
-                const data = await res.json();
-                if (data.task) {
-                    setTask(data.task);
-                    if (data.task.status === 'completed' || data.task.status === 'failed') {
+                const fetchedTask = await api.getTask(taskId);
+                if (fetchedTask) {
+                    setTask(fetchedTask);
+                    if (fetchedTask.status === 'completed' || fetchedTask.status === 'failed') {
                         clearInterval(interval);
                     }
                 }
@@ -36,7 +38,11 @@ const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
 
         const fetchLogs = async () => {
             try {
-                const res = await fetch(`http://localhost:3001/api/tasks/${taskId}/logs`);
+                const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+                const Cookies = (await import('js-cookie')).default;
+                const res = await fetch(`${API_BASE}/api/tasks/${taskId}/logs`, {
+                    headers: { 'Authorization': `Bearer ${Cookies.get('auth_token')}` }
+                });
                 const data = await res.json();
                 if (data.logs) setLogs(data.logs);
             } catch (err) {}
@@ -55,20 +61,8 @@ const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
     const handleDownload = async () => {
         if (!taskId) return;
         try {
-            const res = await fetch(`http://localhost:3001/api/tasks/${taskId}/download`);
-            if (!res.ok) throw new Error('Download failed');
-            
-            const blob = await res.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            
             const filename = task?.title ? `${task.title.replace(/\s+/g, '_')}.docx` : 'meeting_minutes.docx';
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            await api.downloadTaskResult(taskId, filename);
         } catch (err) {
             console.error('Download error:', err);
             alert(dict.common.loading); // Falling back or using a general error if available
@@ -79,7 +73,7 @@ const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
         if (!taskId) return;
         if (!confirm(dict.processing.cancelBtn + '?')) return;
         try {
-            await fetch(`http://localhost:3001/api/tasks/${taskId}/cancel`, { method: 'POST' });
+            await api.cancelTask(taskId);
             onClose?.();
         } catch (err) {
             console.error('Cancel error', err);
@@ -92,6 +86,7 @@ const ProcessingView: React.FC<ProcessingViewProps> = ({ taskId, onClose }) => {
                            : task?.status === 'completed' ? dict.processing.complete
                            : task?.status === 'cancelled' ? dict.processing.cancelled
                            : task ? `${dict.processing.step}: ${task.currentStep || dict.processing.initializing}` 
+                           : localProgressMsg ? localProgressMsg
                            : dict.processing.initializing;
 
     const progressDeg = (displayPct / 100) * 360;

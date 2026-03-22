@@ -49,9 +49,6 @@ class TaskRepository {
             values.push(updates.status);
             if (updates.status === 'completed' || updates.status === 'failed') {
                 fields.push(`completed_at = CURRENT_TIMESTAMP`);
-                if (updates.status === 'completed') {
-                    fields.push(`progress = 100`);
-                }
             }
         }
         if (updates.currentStep) {

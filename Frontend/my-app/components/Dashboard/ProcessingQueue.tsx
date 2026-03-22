@@ -5,7 +5,7 @@ import styles from './ProcessingQueue.module.css';
 import { useI18n } from '@/contexts/LanguageContext';
 import Cookies from 'js-cookie';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:3001/api';
 
 const PROCESSING_STEPS = [
     { id: 'upload', label: 'Upload', description: 'Receiving media stream' },
