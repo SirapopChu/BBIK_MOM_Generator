@@ -4,17 +4,17 @@ import * as taskService from '../services/task.service.js';
 const router = Router();
 
 // GET /api/tasks - List all tasks (active & historical)
-router.get('/', (req, res) => {
-    res.json({ tasks: taskService.getTasks() });
+router.get('/', async (req, res) => {
+    const tasks = await taskService.getTasks();
+    res.json({ tasks });
 });
 
 // GET /api/tasks/:id/logs - Get specific logs for a task
-router.get('/:id/logs', (req, res) => {
+router.get('/:id/logs', async (req, res) => {
     const taskId = req.params.id;
-    const logs   = taskService.getTaskLogs(taskId);
+    const logs   = await taskService.getTaskLogs(taskId);
     
-    if (!logs.length) {
-        // Return 404 or empty logs
+    if (!logs || !logs.length) {
         return res.json({ logs: [] });
     }
     
@@ -22,22 +22,22 @@ router.get('/:id/logs', (req, res) => {
 });
 
 // GET /api/tasks/:id - Specific task status
-router.get('/:id', (req, res) => {
-    const task = taskService.getTaskById(req.params.id);
+router.get('/:id', async (req, res) => {
+    const task = await taskService.getTaskById(req.params.id);
     if (!task) return res.status(404).json({ error: 'Task not found' });
     res.json({ task });
 });
 
 // GET /api/tasks/:id/download - Download specific result of a task
-router.get('/:id/download', (req, res) => {
+router.get('/:id/download', async (req, res) => {
     const taskId = req.params.id;
-    const task = taskService.getTaskById(taskId);
-    const result = taskService.getTaskResult(taskId);
+    const task = await taskService.getTaskById(taskId);
+    const result = await taskService.getTaskResult(taskId);
 
     if (!task || !result) {
         return res.status(404).json({ error: 'Result not found or task not finished' });
     }
-
+    
     const filename = task.title ? `${task.title.replace(/\s+/g, '_')}.docx` : 'meeting_minutes.docx';
     const encodedFilename = encodeURIComponent(filename);
 
@@ -47,20 +47,20 @@ router.get('/:id/download', (req, res) => {
 });
 
 // POST /api/tasks/:id/cancel
-router.post('/:id/cancel', (req, res) => {
-    taskService.cancelTask(req.params.id);
+router.post('/:id/cancel', async (req, res) => {
+    await taskService.cancelTask(req.params.id);
     res.json({ success: true });
 });
 
 // DELETE /api/tasks/:id
-router.delete('/:id', (req, res) => {
-    taskService.deleteTask(req.params.id);
-    res.json({ success: true });
+router.delete('/:id', async (req, res) => {
+    const deleted = await taskService.deleteTask(req.params.id);
+    res.json({ success: deleted });
 });
 
 // DELETE /api/tasks - Clear history
-router.delete('/', (req, res) => {
-    taskService.clearHistory();
+router.delete('/', async (req, res) => {
+    await taskService.clearHistory();
     res.json({ success: true });
 });
 

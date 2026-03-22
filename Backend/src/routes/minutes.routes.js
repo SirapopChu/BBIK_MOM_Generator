@@ -46,49 +46,49 @@ function resolveFilenames(base, meta) {
  * @param {object|null}   metadata
  */
 async function runAudioPipeline(taskId, file, language, metadata) {
-    const checkCancelled = () => {
-        const current = taskService.getTaskById(taskId);
+    const checkCancelled = async () => {
+        const current = await taskService.getTaskById(taskId);
         if (current?.status === 'cancelled') throw new Error('Task cancelled by user');
     };
 
     try {
         // Step 1: Transcribe
-        checkCancelled();
-        taskService.updateTask(taskId, { currentStep: 'transcribe', progress: 10 });
-        taskService.addLog(taskId, `Starting transcription for ${file.originalname}...`);
+        await checkCancelled();
+        await taskService.updateTask(taskId, { currentStep: 'transcribe', progress: 10 });
+        await taskService.addLog(taskId, `Starting transcription for ${file.originalname}...`);
 
         const transcriptResult = await transcribeAudio(
             file.buffer, file.mimetype, file.originalname, language
         );
 
-        checkCancelled();
-        taskService.addLog(taskId, `Transcription complete. Detected language: ${transcriptResult.language}`);
+        await checkCancelled();
+        await taskService.addLog(taskId, `Transcription complete. Detected language: ${transcriptResult.language}`);
 
         // Step 2: Analyze with Claude
-        checkCancelled();
-        taskService.updateTask(taskId, { currentStep: 'analyze', progress: 40 });
-        taskService.addLog(taskId, 'Sending transcript to Claude AI for minute generation...');
+        await checkCancelled();
+        await taskService.updateTask(taskId, { currentStep: 'analyze', progress: 40 });
+        await taskService.addLog(taskId, 'Sending transcript to Claude AI for minute generation...');
 
         const { result } = await generateMinutesText(transcriptResult.text);
 
-        checkCancelled();
-        taskService.addLog(taskId, 'Claude analysis complete.');
+        await checkCancelled();
+        await taskService.addLog(taskId, 'Claude analysis complete.');
 
         // Step 3: Build DOCX
-        checkCancelled();
-        taskService.updateTask(taskId, { currentStep: 'format', progress: 75 });
-        taskService.addLog(taskId, 'Formatting and building DOCX document...');
+        await checkCancelled();
+        await taskService.updateTask(taskId, { currentStep: 'format', progress: 75 });
+        await taskService.addLog(taskId, 'Formatting and building DOCX document...');
 
         const buffer = await buildDocxBuffer(result, metadata);
 
-        checkCancelled();
-        taskService.updateTask(taskId, { status: 'completed', progress: 100, currentStep: 'ready' }, buffer);
-        taskService.addLog(taskId, 'Process completed! Document is ready for download.');
+        await checkCancelled();
+        await taskService.updateTask(taskId, { status: 'completed', progress: 100, currentStep: 'ready' }, buffer);
+        await taskService.addLog(taskId, 'Process completed! Document is ready for download.');
 
     } catch (err) {
         console.error(`[${new Date().toISOString()}] [Pipeline ${taskId}]`, err.message);
-        taskService.updateTask(taskId, { status: 'failed', error: err.message });
-        taskService.addLog(taskId, `ERROR: ${err.message}`);
+        await taskService.updateTask(taskId, { status: 'failed', error: err.message });
+        await taskService.addLog(taskId, `ERROR: ${err.message}`);
     }
 }
 
@@ -128,19 +128,19 @@ router.post('/export-docx', upload.single('transcript'), async (req, res, next) 
         const metadata = parseMetadata(req.body.metadata);
         const { outputName } = resolveFilenames(base, metadata);
 
-        taskId = taskService.createTask(base, 'docx_generation');
-        taskService.addLog(taskId, 'Starting Claude analysis and document generation.');
-        taskService.updateTask(taskId, { currentStep: 'analyze', progress: 20 });
-        taskService.addLog(taskId, 'Contacting Anthropic Claude API...');
+        taskId = await taskService.createTask(base, 'docx_generation');
+        await taskService.addLog(taskId, 'Starting Claude analysis and document generation.');
+        await taskService.updateTask(taskId, { currentStep: 'analyze', progress: 20 });
+        await taskService.addLog(taskId, 'Contacting Anthropic Claude API...');
 
         const { result } = await generateMinutesText(transcript);
-        taskService.addLog(taskId, 'Claude analysis complete.');
-        taskService.updateTask(taskId, { progress: 60, currentStep: 'format' });
-        taskService.addLog(taskId, `Formatting results for DOCX: ${outputName}`);
+        await taskService.addLog(taskId, 'Claude analysis complete.');
+        await taskService.updateTask(taskId, { progress: 60, currentStep: 'format' });
+        await taskService.addLog(taskId, `Formatting results for DOCX: ${outputName}`);
 
         const buffer = await buildDocxBuffer(result, metadata);
-        taskService.addLog(taskId, 'DOCX buffer generated successfully.');
-        taskService.updateTask(taskId, { status: 'completed', progress: 100, currentStep: 'export' });
+        await taskService.addLog(taskId, 'DOCX buffer generated successfully.');
+        await taskService.updateTask(taskId, { status: 'completed', progress: 100, currentStep: 'export' });
 
         const encodedFilename = encodeURIComponent(outputName);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -148,8 +148,8 @@ router.post('/export-docx', upload.single('transcript'), async (req, res, next) 
         res.send(buffer);
     } catch (err) {
         if (taskId) {
-            taskService.updateTask(taskId, { status: 'failed' });
-            taskService.addLog(taskId, `ERROR: ${err.message}`);
+            await taskService.updateTask(taskId, { status: 'failed' });
+            await taskService.addLog(taskId, `ERROR: ${err.message}`);
         }
         next(err);
     }
@@ -167,12 +167,14 @@ router.post('/process-audio', upload.single('audio'), (req, res) => {
     const language = (req.body.language || '').trim();
     const metadata = parseMetadata(req.body.metadata);
 
-    const taskId = taskService.createTask(base, 'full_workflow');
-
-    // Respond immediately with taskId; pipeline runs in background.
-    res.json({ taskId });
-
-    runAudioPipeline(taskId, req.file, language, metadata);
+    taskService.createTask(base, 'full_workflow').then(taskId => {
+        // Respond immediately with taskId; pipeline runs in background.
+        res.json({ taskId });
+        runAudioPipeline(taskId, req.file, language, metadata);
+    }).catch(err => {
+        console.error('Failed to create task:', err);
+        res.status(500).json({ error: 'Failed to initialize processing task.' });
+    });
 });
 
 export default router;

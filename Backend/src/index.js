@@ -1,11 +1,7 @@
-import './config/index.js';                     // validates env vars first
-import express              from 'express';
-import cors                 from 'cors';
-import { config }           from './config/index.js';
-import { errorHandler }     from './middleware/errorHandler.js';
-import minutesRouter        from './routes/minutes.routes.js';
-import transcribeRouter     from './routes/transcribe.routes.js';
-import tasksRouter          from './routes/tasks.routes.js';
+import { initDb }           from './config/database.js';
+
+// Initialize Database
+initDb().catch(console.error);
 
 const app = express();
 

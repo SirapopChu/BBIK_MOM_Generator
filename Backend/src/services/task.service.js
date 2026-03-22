@@ -1,181 +1,122 @@
-/**
- * Repository Pattern: encapsulates all task persistence behind a typed interface.
- * Replaces bare module-level arrays/Maps with a class that owns its state.
- *
- * In a production environment this class would be backed by Redis or a RDBMS.
- * The interface contract stays identical — callers swap only the import.
- *
- * @typedef {{ id: string, title: string, type: string, status: string,
- *             currentStep: string, progress: number, timestamp: string,
- *             completedAt: string|null, error: string|null }} Task
- *
- * @typedef {{ time: string, msg: string }} LogEntry
- */
-
-const MAX_HISTORY = 50;
-const MAX_LOGS_PER_TASK = 100;
+import { query } from '../config/database.js';
 
 class TaskRepository {
-    constructor() {
-        /** @type {Task[]} Ordered newest-first. */
-        this._tasks = [];
-        /** @type {Map<string, LogEntry[]>} */
-        this._logs = new Map();
-        /** @type {Map<string, Buffer>} */
-        this._results = new Map();
-    }
-
     // ── Factories ─────────────────────────────────────────────
 
-    /**
-     * Creates a new task record, initialises its log, and enforces the
-     * MAX_HISTORY cap by evicting the oldest completed task.
-     *
-     * @param {string} title
-     * @param {string} [type='docx_generation']
-     * @returns {string} Unique taskId
-     */
-    create(title, type = 'docx_generation') {
+    async create(title, type = 'docx_generation') {
         const taskId = `TASK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        /** @type {Task} */
-        const task = {
-            id:          taskId,
-            title,
-            type,
-            status:      'processing',
-            currentStep: 'upload',
-            progress:    5,
-            timestamp:   new Date().toISOString(),
-            completedAt: null,
-            error:       null,
-        };
+        
+        await query(
+            'INSERT INTO tasks (id, title, type, status, current_step, progress) VALUES ($1, $2, $3, $4, $5, $6)',
+            [taskId, title, type, 'processing', 'upload', 5]
+        );
 
-        this._tasks.unshift(task);
-        this._logs.set(taskId, [
-            { time: new Date().toLocaleTimeString(), msg: `Task '${title}' initialized.` },
-        ]);
-
-        // Evict the oldest entry beyond the history cap.
-        if (this._tasks.length > MAX_HISTORY) {
-            const evicted = this._tasks.pop();
-            if (evicted) {
-                this._logs.delete(evicted.id);
-                this._results.delete(evicted.id);
-            }
-        }
-
+        await this.addLog(taskId, `Task '${title}' initialized.`);
         return taskId;
     }
 
     // ── Reads ─────────────────────────────────────────────────
 
-    /**
-     * @returns {Task[]} All tasks, newest first.
-     */
-    getAll() {
-        return this._tasks;
+    async getAll() {
+        const { rows } = await query('SELECT * FROM tasks ORDER BY created_at DESC');
+        return rows.map(this._mapTask);
     }
 
-    /**
-     * @param {string} taskId
-     * @returns {Task|undefined}
-     */
-    getById(taskId) {
-        return this._tasks.find(t => t.id === taskId);
+    async getById(taskId) {
+        const { rows } = await query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+        return rows[0] ? this._mapTask(rows[0]) : undefined;
     }
 
-    /**
-     * @param {string} taskId
-     * @returns {LogEntry[]}
-     */
-    getLogs(taskId) {
-        return this._logs.get(taskId) ?? [];
+    async getLogs(taskId) {
+        const { rows } = await query('SELECT time, msg FROM task_logs WHERE task_id = $1 ORDER BY id ASC', [taskId]);
+        return rows;
     }
 
-    /**
-     * @param {string} taskId
-     * @returns {Buffer|undefined}
-     */
-    getResult(taskId) {
-        return this._results.get(taskId);
+    async getResult(taskId) {
+        const { rows } = await query('SELECT data FROM task_results WHERE task_id = $1', [taskId]);
+        return rows[0] ? rows[0].data : undefined;
     }
 
     // ── Mutations ─────────────────────────────────────────────
 
-    /**
-     * Merges `updates` into the existing task record.
-     * Automatically sets `completedAt` when status transitions to terminal states.
-     *
-     * @param {string}       taskId
-     * @param {Partial<Task>} updates
-     * @param {Buffer|null}  [resultData=null]
-     */
-    update(taskId, updates, resultData = null) {
-        const task = this.getById(taskId);
-        if (!task) return;
+    async update(taskId, updates, resultData = null) {
+        const fields = [];
+        const values = [];
+        let index = 1;
 
-        Object.assign(task, updates);
-        if (resultData) this._results.set(taskId, resultData);
+        if (updates.status) {
+            fields.push(`status = $${index++}`);
+            values.push(updates.status);
+            if (updates.status === 'completed' || updates.status === 'failed') {
+                fields.push(`completed_at = CURRENT_TIMESTAMP`);
+                if (updates.status === 'completed') {
+                    fields.push(`progress = 100`);
+                }
+            }
+        }
+        if (updates.currentStep) {
+            fields.push(`current_step = $${index++}`);
+            values.push(updates.currentStep);
+        }
+        if (updates.progress !== undefined) {
+            fields.push(`progress = $${index++}`);
+            values.push(updates.progress);
+        }
+        if (updates.error) {
+            fields.push(`error = $${index++}`);
+            values.push(updates.error);
+        }
 
-        if (updates.status === 'completed' || updates.status === 'failed') {
-            task.completedAt = new Date().toISOString();
-            if (updates.status === 'completed') task.progress = 100;
+        if (fields.length > 0) {
+            values.push(taskId);
+            await query(
+                `UPDATE tasks SET ${fields.join(', ')} WHERE id = $${index}`,
+                values
+            );
+        }
+
+        if (resultData) {
+            await query(
+                'INSERT INTO task_results (task_id, data) VALUES ($1, $2) ON CONFLICT (task_id) DO UPDATE SET data = $2',
+                [taskId, resultData]
+            );
         }
     }
 
-    /**
-     * Appends a log message to an existing task's log array.
-     * Silently no-ops if the task does not exist.
-     *
-     * @param {string} taskId
-     * @param {string} msg
-     */
-    addLog(taskId, msg) {
-        const taskLogs = this._logs.get(taskId);
-        if (!taskLogs) return;
-
-        taskLogs.push({ time: new Date().toLocaleTimeString(), msg });
-
-        // Prevent unbounded growth; drop the oldest log once the cap is reached.
-        if (taskLogs.length > MAX_LOGS_PER_TASK) taskLogs.shift();
+    async addLog(taskId, msg) {
+        const time = new Date().toLocaleTimeString();
+        await query(
+            'INSERT INTO task_logs (task_id, time, msg) VALUES ($1, $2, $3)',
+            [taskId, time, msg]
+        );
     }
 
-    /**
-     * Transitions a task to the 'cancelled' status.
-     *
-     * @param {string} taskId
-     */
-    cancel(taskId) {
-        this.update(taskId, { status: 'cancelled', currentStep: 'cancelled' });
-        this.addLog(taskId, 'Task was cancelled by the user.');
+    async cancel(taskId) {
+        await this.update(taskId, { status: 'cancelled', currentStep: 'cancelled' });
+        await this.addLog(taskId, 'Task was cancelled by the user.');
     }
 
-    /**
-     * Removes a task and all associated data.
-     *
-     * @param {string} taskId
-     * @returns {boolean} True if the task existed and was removed.
-     */
-    delete(taskId) {
-        const index = this._tasks.findIndex(t => t.id === taskId);
-        if (index === -1) return false;
-
-        this._tasks.splice(index, 1);
-        this._logs.delete(taskId);
-        this._results.delete(taskId);
-        return true;
+    async delete(taskId) {
+        const { rowCount } = await query('DELETE FROM tasks WHERE id = $1', [taskId]);
+        return rowCount > 0;
     }
 
-    /**
-     * Removes all non-active tasks and their associated data.
-     * Active statuses: 'processing', 'queued'.
-     */
-    clearHistory() {
-        const active = new Set(['processing', 'queued']);
-        const toRemove = this._tasks.filter(t => !active.has(t.status));
-        for (const task of toRemove) {
-            this.delete(task.id);
-        }
+    async clearHistory() {
+        await query("DELETE FROM tasks WHERE status NOT IN ('processing', 'queued')");
+    }
+
+    _mapTask(row) {
+        return {
+            id:          row.id,
+            title:       row.title,
+            type:        row.type,
+            status:      row.status,
+            currentStep: row.current_step,
+            progress:    row.progress,
+            timestamp:   row.created_at,
+            completedAt: row.completed_at,
+            error:       row.error
+        };
     }
 }
 
