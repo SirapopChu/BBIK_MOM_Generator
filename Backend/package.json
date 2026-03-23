@@ -1,0 +1,44 @@
+{
+  "name": "bbik-mom-backend",
+  "version": "1.0.0",
+  "description": "Backend for BBIK MOM Generator - Meeting notes generation with transcription",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "worker": "node src/worker.js",
+    "lint": "eslint src/**/*.js",
+    "test": "node test-ci-integration.js"
+  },
+  "keywords": [
+    "meeting",
+    "transcription",
+    "whisper",
+    "anthropic",
+    "claude",
+    "mom",
+    "minutes"
+  ],
+  "author": "Bluebik",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "bcryptjs": "^2.4.3",
+    "bullmq": "^5.4.2",
+    "cors": "^2.8.5",
+    "docx": "^8.5.0",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.6.0",
+    "mime-types": "^2.1.35",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.28.0",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "eslint": "^9.17.0"
+  }
+}
