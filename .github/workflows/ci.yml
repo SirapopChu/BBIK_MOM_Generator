@@ -13,6 +13,10 @@ on:
       - 'Backend/**'
       - 'Frontend/my-app/**'
 
+# บังคับใช้ Node.js 24 เพื่อแก้แจ้งเตือน (Deprecation Warning) ของ GitHub Actions
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -36,8 +40,10 @@ jobs:
           filters: |
             backend:
               - 'Backend/**'
+              - '.github/workflows/**'
             frontend:
               - 'Frontend/my-app/**'
+              - '.github/workflows/**'
 
   backend-ci:
     name: Backend CI
@@ -116,8 +122,9 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
+      # อัปเดตเวอร์ชันเป็น v4 เพื่อแก้แจ้งเตือน CodeQL Deprecation
       - name: Upload results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
@@ -160,4 +167,3 @@ jobs:
       - name: Trigger Server Deployment
         run: |
           echo "✅ Images built and pushed successfully to Docker Hub."
-          echo "Next step: Add SSH action here to connect to the staging server and run 'docker compose pull && docker compose up -d'"
