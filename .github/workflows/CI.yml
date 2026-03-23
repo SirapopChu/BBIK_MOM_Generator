@@ -2,12 +2,53 @@ name: Project Verification
 
 on:
   push:
-    branches: [ main ]
+    branches: [main, dev, "feature/**"]
+    paths:
+      - 'Backend/**'
+      - 'Frontend/my-app/**'
+      - '.github/workflows/**'
   pull_request:
-    branches: [ main ]
+    branches: [main, dev]
+    paths:
+      - 'Backend/**'
+      - 'Frontend/my-app/**'
+
+# บังคับใช้ Node.js 24 เพื่อแก้แจ้งเตือน (Deprecation Warning) ของ GitHub Actions
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
-  backend-test:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'Backend/**'
+              - '.github/workflows/**'
+            frontend:
+              - 'Frontend/my-app/**'
+              - '.github/workflows/**'
+
+  backend-ci:
+    name: Backend CI
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -22,45 +63,107 @@ jobs:
         image: redis:7
         ports:
           - 6379:6379
-
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 21
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: Backend/package-lock.json
 
-      - name: Install Dependencies
-        run: cd Backend && npm ci
-
-      - name: Run Backend Tests
-        run: cd Backend && npm run test
+      - name: Install & Test
+        working-directory: Backend
+        run: |
+          npm ci
+          npm run lint --if-present
+          npm run test
         env:
           DATABASE_URL: postgres://user:password@localhost:5432/mom_generator
           REDIS_URL: redis://localhost:6379
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
-  frontend-verify:
+  frontend-ci:
+    name: Frontend CI
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 21
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: Frontend/my-app/package-lock.json
 
-      - name: Install Dependencies
-        run: cd Frontend/my-app && npm ci
+      - name: Install & Build
+        working-directory: Frontend/my-app
+        run: |
+          npm ci
+          npm run lint --if-present
+          npm run build
 
-      - name: Lint
-        run: cd Frontend/my-app && npm run lint
+      - name: Playwright E2E Tests
+        working-directory: Frontend/my-app
+        run: |
+          npx playwright install --with-deps
+          npx playwright test
 
-      - name: Build
-        run: cd Frontend/my-app && npm run build
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Trivy scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      # อัปเดตเวอร์ชันเป็น v4 เพื่อแก้แจ้งเตือน CodeQL Deprecation
+      - name: Upload results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
 
-      - name: Install Playwright Browsers
-        run: cd Frontend/my-app && npx playwright install --with-deps
+  deploy-staging:
+    name: Build & Push to Registry
+    needs: [backend-ci, frontend-ci, security-scan] 
+    if: github.ref == 'refs/heads/dev' && success()
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+          
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Backend
+          file: ./Backend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/bbik-mom-backend:staging-${{ github.sha }}
+            ${{ secrets.DOCKER_HUB_USERNAME }}/bbik-mom-backend:staging-latest
+          
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Frontend/my-app
+          file: ./Frontend/my-app/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/bbik-mom-frontend:staging-${{ github.sha }}
+            ${{ secrets.DOCKER_HUB_USERNAME }}/bbik-mom-frontend:staging-latest
 
-      - name: Run E2E Tests
-        run: cd Frontend/my-app && npx playwright test
+      - name: Trigger Server Deployment
+        run: |
+          echo "✅ Images built and pushed successfully to Docker Hub."
