@@ -13,7 +13,6 @@ on:
       - 'Backend/**'
       - 'Frontend/my-app/**'
 
-# บังคับใช้ Node.js 24 เพื่อแก้แจ้งเตือน (Deprecation Warning) ของ GitHub Actions
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -65,16 +64,16 @@ jobs:
           - 6379:6379
     steps:
       - uses: actions/checkout@v4
+      
+      # ตัดเรื่อง cache ออกไปเลย เพื่อไม่ให้ระบบหา package-lock.json
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: Backend/package-lock.json
 
       - name: Install & Test
         working-directory: Backend
         run: |
-          npm ci
+          npm install  # เปลี่ยนจาก npm ci เป็น npm install
           npm run lint --if-present
           npm run test
         env:
@@ -91,16 +90,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      # ตัดเรื่อง cache ออกไปเลยเช่นกัน
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: Frontend/my-app/package-lock.json
 
       - name: Install & Build
         working-directory: Frontend/my-app
         run: |
-          npm ci
+          npm install  # เปลี่ยนจาก npm ci เป็น npm install
           npm run lint --if-present
           npm run build
 
@@ -122,7 +121,6 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
-      # อัปเดตเวอร์ชันเป็น v4 เพื่อแก้แจ้งเตือน CodeQL Deprecation
       - name: Upload results
         uses: github/codeql-action/upload-sarif@v4
         if: always()
