@@ -47,5 +47,3 @@ Long-running AI tasks (Whisper transcription & Claude analysis) are offloaded to
 
 ---
 
-## 6. Next Steps for Backend
-Refer to the **[Task Roadmap](file:///Users/khempz/.gemini/antigravity/brain/721904e5-f7c5-4be8-b94d-17b2abf264cf/task.md)** for detailed implementation requirements for Speaker Diarization and RBAC.
