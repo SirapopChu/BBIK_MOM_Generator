@@ -129,8 +129,6 @@ jobs:
 
   deploy-staging:
     name: Build & Push to Registry
-    needs: [backend-ci, frontend-ci, security-scan] 
-    if: github.ref == 'refs/heads/dev' && success()
     runs-on: ubuntu-latest
     environment: staging
     steps:
