@@ -1,0 +1,130 @@
+name: Project Verification
+
+on:
+  push:
+    branches: [main, dev, "feature/**"]
+    paths:
+      - 'Backend/**'
+      - 'Frontend/my-app/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'Backend/**'
+      - 'Frontend/my-app/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'Backend/**'
+            frontend:
+              - 'Frontend/my-app/**'
+
+  backend-ci:
+    name: Backend CI
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: mom_generator
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: Install & Test
+        working-directory: Backend
+        run: |
+          npm ci
+          npm run lint --if-present
+          npm run test
+        env:
+          DATABASE_URL: postgres://user:password@localhost:5432/mom_generator
+          REDIS_URL: redis://localhost:6379
+
+  frontend-ci:
+    name: Frontend CI
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Frontend/my-app/package-lock.json
+
+      - name: Install & Build
+        working-directory: Frontend/my-app
+        run: |
+          npm ci
+          npm run lint --if-present
+          npm run build
+
+      - name: Playwright E2E Tests
+        working-directory: Frontend/my-app
+        run: |
+          npx playwright install --with-deps
+          npx playwright test
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Trivy scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      - name: Upload results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [backend-ci, frontend-ci]
+    if: github.ref == 'refs/heads/dev' && success()
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Deploy
+        run: echo "Deploying to staging server..."
