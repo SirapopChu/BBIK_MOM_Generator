@@ -244,9 +244,13 @@
     "xtend": "^4.0.2",
     "yocto-queue": "^0.1.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2",
+    "vitest": "^4.1.0"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",

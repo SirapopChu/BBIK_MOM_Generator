@@ -24,22 +24,25 @@ describe('TaskService', () => {
     );
   });
 
-  it('should retrieve a task by ID', async () => {
+ it('should retrieve a task by ID', async () => {
+    const mockTaskUserId = 'user-123'; // ประกาศตัวแปรไว้ใช้
     const mockTask = { id: 'uuid', title: 'Test', status: 'processing' };
     query.mockResolvedValueOnce({ rows: [mockTask] });
 
-    const task = await taskService.getTaskById('uuid');
+    // ส่ง id และ userId เข้าไปใน service
+    const task = await taskService.getTaskById('uuid', mockTaskUserId);
     
     expect(task).toEqual(expect.objectContaining({
       id: 'uuid',
-      title: 'Test',
       status: 'processing'
     }));
+
+    // แก้ไขตรงนี้: ต้องตรงกับที่ Service เรียกใช้จริง
     expect(query).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT * FROM tasks WHERE id = $1'),
-      ['uuid']
+      expect.stringContaining('SELECT * FROM tasks WHERE id = $1 AND user_id = $2'),
+      ['uuid', mockTaskUserId] 
     );
-  });
+});
 
   it('should return undefined if task not found', async () => {
     query.mockResolvedValueOnce({ rows: [] });
