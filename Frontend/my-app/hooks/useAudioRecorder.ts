@@ -74,8 +74,13 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         if (recordPluginRef.current) {
             try {
                 const rec = recordPluginRef.current;
-                const origStream = rec.originalDisplayStream;
-                if (origStream) origStream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+                const stream = (rec as any).stream;
+                if (stream) {
+                    stream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+                    if (stream._originalStreams) {
+                        stream._originalStreams.forEach((s: MediaStream) => s.getTracks().forEach((t: MediaStreamTrack) => t.stop()));
+                    }
+                }
                 if (rec.isRecording() || rec.isPaused()) rec.stopRecording();
             } catch { /* best effort */ }
             recordPluginRef.current = null;
@@ -94,13 +99,14 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             const pre = await navigator.mediaDevices.enumerateDevices();
             if (!pre.some(d => d.label)) {
                 const s = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
-                s?.getTracks().forEach(t => t.stop());
+                if (s) s.getTracks().forEach(t => t.stop());
             }
             const all    = await navigator.mediaDevices.enumerateDevices();
             const inputs = all.filter(d => d.kind === 'audioinput');
             setDevices([...inputs, SYSTEM_AUDIO_DEVICE]);
             if (inputs.length > 0 && !selectedDeviceId) {
-                setSelectedDeviceId(inputs.find(d => d.deviceId === 'default')?.deviceId ?? inputs[0].deviceId);
+                const def = inputs.find(d => d.deviceId === 'default') || inputs[0];
+                setSelectedDeviceId(def.deviceId);
             }
         } catch { /* non-critical */ }
     }, [selectedDeviceId]);
@@ -134,28 +140,64 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     // ── initWaveSurfer ────────────────────────────────────────────────────────
 
     async function getMediaStream(): Promise<MediaStream> {
+        // Always get MIC first as baseline
+        const micStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: selectedDeviceId === 'system_audio' ? true : { deviceId: selectedDeviceId } 
+        });
+
         if (selectedDeviceId !== 'system_audio') {
-            return navigator.mediaDevices.getUserMedia({ audio: { deviceId: selectedDeviceId } });
+            return micStream;
         }
 
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-        const audioTrack    = displayStream.getAudioTracks()[0];
+        try {
+            // Request System Audio (Display Media)
+            const displayStream = await navigator.mediaDevices.getDisplayMedia({ 
+                video: true, 
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                } as any
+            });
 
-        if (!audioTrack) {
-            displayStream.getTracks().forEach(t => t.stop());
-            throw new Error('Please check "Share audio" when sharing your screen or tab.');
+            const systemAudioTrack = displayStream.getAudioTracks()[0];
+            if (!systemAudioTrack) {
+                displayStream.getTracks().forEach(t => t.stop());
+                // Fallback to just MIC if user didn't share audio
+                console.warn('System audio track missing. Using MIC only.');
+                return micStream;
+            }
+
+            // Mix MIC and System Audio using AudioContext
+            const audioCtx = new AudioContext();
+            const micSource = audioCtx.createMediaStreamSource(micStream);
+            const systemSource = audioCtx.createMediaStreamSource(new MediaStream([systemAudioTrack]));
+            const destination = audioCtx.createMediaStreamDestination();
+
+            micSource.connect(destination);
+            systemSource.connect(destination);
+
+            const mixedStream = destination.stream;
+
+            // Carry references for cleanup
+            (mixedStream as any)._originalStreams = [micStream, displayStream];
+            (mixedStream as any)._audioCtx = audioCtx;
+
+            // Auto-stop recording if screen share is stopped manually
+            const videoTrack = displayStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.onended = () => {
+                    if (recordPluginRef.current?.isRecording()) {
+                        recordPluginRef.current.stopRecording();
+                    }
+                };
+            }
+
+            return mixedStream;
+        } catch (err) {
+            console.error('getDisplayMedia failed, falling back to MIC:', err);
+            return micStream;
         }
-
-        // Auto-stop recording when screen-share ends via native browser controls.
-        const videoTrack = displayStream.getVideoTracks()[0];
-        if (videoTrack) {
-            videoTrack.onended = () => {
-                if (recordPluginRef.current?.isRecording()) recordPluginRef.current.stopRecording();
-            };
-        }
-
-        (displayStream as any)._originalRef = displayStream;
-        return new MediaStream([audioTrack]);
     }
 
     function attachVolumeMonitor(stream: MediaStream, getActive: () => boolean) {
@@ -167,7 +209,10 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
 
         const data = new Uint8Array(analyser.frequencyBinCount);
         const tick = () => {
-            if (!getActive()) return;
+            if (!getActive()) {
+                ctx.close();
+                return;
+            }
             analyser.getByteFrequencyData(data);
             const avg = data.reduce((a, b) => a + b, 0) / data.length;
             setVolume(avg);
@@ -201,41 +246,37 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             recordPluginRef.current = record;
 
             record.on('record-end', (blob: Blob) => {
-                // Stop screen-share stream if applicable.
-                const orig = record.originalDisplayStream;
-                if (orig) orig.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+                const stream = (record as any).stream;
+                if (stream) {
+                    stream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+                    if (stream._originalStreams) {
+                        stream._originalStreams.forEach((s: MediaStream) => s.getTracks().forEach((t: MediaStreamTrack) => t.stop()));
+                    }
+                    if (stream._audioCtx) stream._audioCtx.close();
+                }
                 setRecordedBlob(blob);
                 setIsRecording(false);
                 setIsPaused(false);
             });
 
             const stream = await getMediaStream();
+            (record as any).stream = stream;
 
-            // Attach system-audio display stream reference for later cleanup.
-            if (selectedDeviceId === 'system_audio') {
-                const micStream = record.renderMicStream(stream);
-                record.micStream           = micStream;
-                record.unsubscribeDestroy  = record.once('destroy', micStream.onDestroy.bind(micStream));
-                record.unsubscribeRecordEnd = record.once('record-end', micStream.onEnd.bind(micStream));
-                (record as any).stream           = stream;
-                await record.startRecording();
-            } else {
-                await record.startRecording({ deviceId: selectedDeviceId });
-            }
+            // For RecordPlugin to work with our manual stream, we bypass its internal getUserMedia
+            await record.startRecording({ stream });
 
             attachVolumeMonitor(
-                (record as any).stream ?? stream,
+                stream,
                 () => isRecording && !isPaused,
             );
 
         } catch (err: any) {
+            console.error('initWaveSurfer error:', err);
             const msg = err.message ?? '';
-            if (msg.includes('Share audio') || msg.includes('screen')) {
-                alert(`System Audio error: ${msg}`);
-            } else if (msg.includes('system')) {
-                alert('Microphone access is blocked. Go to System Settings > Privacy & Security > Microphone.');
+            if (msg.includes('Permission denied')) {
+                alert('Permissions denied. Please allow camera/microphone access in your browser settings.');
             } else {
-                alert(`Microphone error: ${msg}. Ensure permissions are granted.`);
+                alert(`Recording error: ${msg}`);
             }
             setIsRecording(false);
             cleanup();

@@ -151,26 +151,32 @@ const MeetingRecord = () => {
         }
     };
 
-    // ── UI Helpers ───────────────────────────────────────────────────────────
-    const handleAudioUploadClick      = () => audioFileInputRef.current?.click();
-    const handleTranscribeUploadClick = () => transcribeFileInputRef.current?.click();
+    // ── Simple Transcribe (Preview only) ────────────────────────────────────
+    const handleAudioUploadClick      = (e: React.MouseEvent) => {
+        audioFileInputRef.current?.click();
+    };
+    const handleTranscribeUploadClick = (e: React.MouseEvent) => {
+        transcribeFileInputRef.current?.click();
+    };
 
     const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) setUploadedAudioFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+        if (e.target.files && e.target.files.length > 0) {
+            const filesArray = Array.from(e.target.files);
+            setUploadedAudioFiles(prev => [...prev, ...filesArray]);
+        }
+        e.target.value = '';
     };
 
     const handleTranscribeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) setUploadedTranscribeFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+        if (e.target.files && e.target.files.length > 0) {
+            const filesArray = Array.from(e.target.files);
+            setUploadedTranscribeFiles(prev => [...prev, ...filesArray]);
+        }
         e.target.value = ''; 
     };
 
     const removeAudioFile      = (index: number) => setUploadedAudioFiles(prev => prev.filter((_, i) => i !== index));
     const removeTranscribeFile = (index: number) => setUploadedTranscribeFiles(prev => prev.filter((_, i) => i !== index));
-
-    const clearTranscribeFiles = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setUploadedTranscribeFiles([]);
-    };
 
     const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.currentTarget.classList.add(styles.uploadAreaActive); };
     const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); e.currentTarget.classList.remove(styles.uploadAreaActive); };
@@ -406,18 +412,17 @@ const MeetingRecord = () => {
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="white" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
                                 </button>
                             </div>
-                        </div>
-
-                        <div className={styles.card}>
-                            <div className={styles.cardHeader}>
-                                <div>
-                                    <h2 className={styles.cardTitle}>External Media & Transcripts</h2>
-                                    <p className={styles.cardDesc}>Upload existing files</p>
-                                </div>
-                            </div>
 
                             <div style={{ marginTop: '1.5rem' }}>
                                 <div className={styles.configTitle}>AUDIO FILE (.MP3, .WAV, .M4A)</div>
+                                <input 
+                                    type="file" 
+                                    ref={audioFileInputRef} 
+                                    style={{ display: 'none' }} 
+                                    multiple 
+                                    accept=".mp3,.wav,.m4a" 
+                                    onChange={handleAudioFileChange} 
+                                />
                                 <div
                                     className={styles.uploadArea}
                                     onClick={handleAudioUploadClick}
@@ -425,30 +430,56 @@ const MeetingRecord = () => {
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleAudioDrop}
                                 >
-                                    <input type="file" ref={audioFileInputRef} hidden multiple accept=".mp3,.wav,.m4a" onChange={handleAudioFileChange} />
-                                    <div className={styles.uploadIcon}>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                    </div>
-                                    <div className={styles.uploadAreaFiles}>
-                                        {uploadedAudioFiles.length > 0 ? (
-                                            uploadedAudioFiles.map((file, idx) => (
-                                                <div key={idx} className={styles.uploadedFileRow}>
-                                                    <span className={styles.uploadedFileName}>{file.name}</span>
+                                    {uploadedAudioFiles.length === 0 ? (
+                                        <>
+                                            <div className={styles.uploadIcon}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                            </div>
+                                            <div className={styles.uploadText}>Drop audio or click to browse</div>
+                                            <div className={styles.uploadSubtext}>Supports MP3, WAV, M4A up to 25MB</div>
+                                        </>
+                                    ) : (
+                                        <div className={styles.uploadAreaFiles}>
+                                            {uploadedAudioFiles.map((file, idx) => (
+                                                <div key={idx} className={styles.uploadedFileRow} onClick={(e) => e.stopPropagation()}>
+                                                    <div className={styles.uploadedFileInfo}>
+                                                        <span className={styles.uploadedFileName}>{file.name}</span>
+                                                        <span className={styles.uploadedFileSize}>{(file.size / (1024 * 1024)).toFixed(2)} MB</span>
+                                                    </div>
                                                     <div className={styles.uploadedFileActions}>
-                                                        <button className={styles.transcribeFileBtn} onClick={(e) => { e.stopPropagation(); handleTranscribeUploadedAudio(file); }}>
+                                                        <button 
+                                                            className={styles.transcribeFileBtn} 
+                                                            onClick={(e) => { e.stopPropagation(); handleTranscribeUploadedAudio(file); }}
+                                                            title="Process"
+                                                        >
                                                             {dict.record.processBtn.split(' ')[0]}
                                                         </button>
-                                                        <button className={styles.removeFileBtn} onClick={(e) => { e.stopPropagation(); removeAudioFile(idx); }}>×</button>
+                                                        <button 
+                                                            className={styles.removeFileBtn} 
+                                                            onClick={(e) => { e.stopPropagation(); removeAudioFile(idx); }}
+                                                            title="Remove"
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                        </button>
                                                     </div>
                                                 </div>
-                                            ))
-                                        ) : 'Click or drag audio'}
-                                    </div>
+                                            ))}
+                                            <div className={styles.uploadSubtext} style={{ marginTop: '0.5rem' }}>Click gaps to add more files</div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
                             <div style={{ marginTop: '2rem' }}>
                                 <div className={styles.configTitle}>TRANSCRIPT FILE (.TXT, .MD, .DOCX)</div>
+                                <input 
+                                    type="file" 
+                                    ref={transcribeFileInputRef} 
+                                    style={{ display: 'none' }} 
+                                    multiple 
+                                    accept=".txt,.md,.docx" 
+                                    onChange={handleTranscribeFileChange} 
+                                />
                                 <div
                                     className={styles.uploadArea}
                                     onClick={handleTranscribeUploadClick}
@@ -456,13 +487,34 @@ const MeetingRecord = () => {
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleTranscribeDrop}
                                 >
-                                    <input type="file" ref={transcribeFileInputRef} hidden multiple accept=".txt,.md,.docx" onChange={handleTranscribeFileChange} />
-                                    <div className={styles.uploadIcon}>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                                    </div>
-                                    <p className={styles.uploadText}>
-                                        {uploadedTranscribeFiles.length > 0 ? uploadedTranscribeFiles.map(f => f.name).join(', ') : 'Click or drag transcript'}
-                                    </p>
+                                    {uploadedTranscribeFiles.length === 0 ? (
+                                        <>
+                                            <div className={styles.uploadIcon}>
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                            </div>
+                                            <div className={styles.uploadText}>Drop transcript or click to browse</div>
+                                        </>
+                                    ) : (
+                                        <div className={styles.uploadAreaFiles}>
+                                            {uploadedTranscribeFiles.map((file, idx) => (
+                                                <div key={idx} className={styles.uploadedFileRow} onClick={(e) => e.stopPropagation()}>
+                                                    <div className={styles.uploadedFileInfo}>
+                                                        <span className={styles.uploadedFileName}>{file.name}</span>
+                                                    </div>
+                                                    <div className={styles.uploadedFileActions}>
+                                                        <button 
+                                                            className={styles.removeFileBtn} 
+                                                            onClick={(e) => { e.stopPropagation(); removeTranscribeFile(idx); }}
+                                                            title="Remove"
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <div className={styles.uploadSubtext} style={{ marginTop: '0.5rem' }}>Click gaps to add more files</div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
