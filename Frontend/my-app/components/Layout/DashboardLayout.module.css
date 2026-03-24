@@ -3,7 +3,7 @@
     height: 100vh;
     width: 100vw;
     background-color: #f7f8f9;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-noto-th), var(--font-prompt), system-ui, -apple-system, sans-serif;
     overflow: hidden;
     position: relative;
 }

@@ -2,7 +2,7 @@
     max-width: 1000px;
     margin: 0 auto;
     padding: 2rem 1rem 4rem 1rem;
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: var(--font-noto-th), var(--font-prompt), -apple-system, sans-serif;
 }
 
 .stepperContainer {
@@ -395,7 +395,7 @@
     display: flex;
     flex-direction: column;
     background-color: #f8fafc;
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: var(--font-noto-th), var(--font-prompt), -apple-system, sans-serif;
     color: #0f172a;
     position: relative;
     min-height: 100vh;

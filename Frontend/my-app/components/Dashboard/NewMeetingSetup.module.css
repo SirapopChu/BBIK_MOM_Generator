@@ -2,7 +2,7 @@
     max-width: 800px;
     margin: 0 auto;
     padding: 2rem 1rem 4rem 1rem;
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: var(--font-noto-th), var(--font-prompt), -apple-system, sans-serif;
 }
 
 .stepperContainer {
