@@ -8,7 +8,9 @@ The BBIK MOM Generator is an enterprise-grade solution for automating the captur
 
 ## 1. Key Features
 
-- **Professional Recording Dashboard:** Real-time audio visualization (WaveSurfer.js) and system/mic audio capture.
+- **Dual-Source Recording (System + Mic):** High-fidelity capture of both browser audio (Teams/Zoom) and the user's local microphone.
+- **Dynamic Device Support:** Seamlessly switch microphones during an active recording session without interruption.
+- **Modern Typography:** Optimized for Thai/English readability using **Noto Sans Thai** and **Prompt** Google Fonts.
 - **Client-Side Compression:** FFmpeg WASM integration to compress audio before upload, ensuring high performance for long meetings.
 - **Bilingual Intelligence:** 100% Thai/English parity for both the UI and the generated AI summaries.
 - **Enterprise Security:** JWT-based authentication with strict data isolation for multi-tenant occupancy.
@@ -21,7 +23,9 @@ The BBIK MOM Generator is an enterprise-grade solution for automating the captur
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | Next.js 16 (App Router), TypeScript, Tailwind CSS |
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript |
+| **Styling** | Tailwind CSS v4 (CSS-first config) |
+| **Fonts** | Noto Sans Thai, Prompt (Next/Font) |
 | **Backend API** | Node.js 21, Express 4 (ESM), JWT Auth |
 | **Database** | PostgreSQL 16 (Relational Persistence) |
 | **Worker Queue** | Redis 7, BullMQ (Asynchronous Tasks) |

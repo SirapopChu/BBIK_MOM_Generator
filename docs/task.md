@@ -39,10 +39,21 @@
 - [x] JWT-based Authentication (Backend & Frontend)
 - [x] User-scoped Data Isolation (Database & Workers)
 - [x] Premium Login/Register Interface (Glassmorphism)
+- [x] Auto-download feature (processed files)
+- [x] Secure file-naming & status persistence
+- [x] Enhanced UX/UI Polish (Save Modal, Progress indicators)
+- [x] Modern Typography: Noto Sans Thai + Prompt Google Fonts
+- [x] Tailwind CSS v4 migration (App-wide styling)
+
+## [COMPLETED] Phase 6: Professional Audio Engine
+- [x] Dual-Source Capture (Browser System Audio + Mic)
+- [x] Professional `AudioContext` Stream Mixing
+- [x] Dynamic Device Hot-swapping (Change mic during recording)
+- [x] Background Stream Stability (Permission persistence)
 
 ---
 
-## Phase 6: Advanced Intelligence (Future) ไว้ค่อยทำ ยังไม่ต้อง
+## Phase 7: Advanced Intelligence (Future) ไว้ค่อยทำ ยังไม่ต้อง
 - [ ] **Speaker Diarization:** Implement speaker identification using audio timestamps.
 - [ ] **Template Customization:** Enable users to upload their own Word templates.
 - [ ] **RBAC:** Add Admin/Reviewer/User role-based access controls.

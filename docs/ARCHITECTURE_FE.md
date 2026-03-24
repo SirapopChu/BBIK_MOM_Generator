@@ -1,7 +1,8 @@
 # Architecture: Frontend — BBIK MOM Generator
 
-**Framework:** Next.js 16 (App Router) + TypeScript
-**Styling:** Vanilla CSS (BBIK Brand Blue/Dark Palette)
+**Framework:** Next.js 16 (App Router) + React 19 + TypeScript
+**Styling:** Tailwind CSS v4 (Modern CSS-first architecture)
+**Fonts:** Noto Sans Thai (Primary Thai) + Prompt (Clean English/Thai)
 **State Management:** React Context API
 
 ---
@@ -27,7 +28,7 @@
 
 ## 4. Professional Recording Dashboard
 The `MeetingRecord.tsx` component is the most complex frontend module. It leverages several specialized hooks:
-- **`useAudioRecorder.ts`**: Manages WaveSurfer.js visualization, device selection, and system audio capture.
+- **`useAudioRecorder.ts`**: Orchestrates `AudioContext` to mix system and mic streams. It supports "hot-swapping" the mic during tracking by rebuilding the source node chains.
 - **`useCompressedUpload.ts`**: Implements FFmpeg WASM for client-side audio compression to reduce server load.
 - **`useTranscription.ts`**: Handles audio upload and the subsequent real-time polling flow.
 
