@@ -24,19 +24,14 @@ export interface UseAudioRecorderReturn {
     setSelectedDeviceId: (id: string) => void;
     /** DOM ref to mount the WaveSurfer waveform canvas into. */
     waveContainerRef: React.RefObject<HTMLDivElement>;
-    startRecording: () => void;
+    startRecording: (withSystemAudio?: boolean) => Promise<void>;
     pauseResume:    () => void;
     stopRecording:  () => void;
     resetRecording: () => void;
+    isSystemAudioActive: boolean;
 }
 
-// Virtual device entry appended to the real device list.
-const SYSTEM_AUDIO_DEVICE: MediaDeviceInfo = {
-    deviceId: 'system_audio',
-    label:    'System Audio (Zoom/Teams/Meet)',
-    kind:     'audioinput',
-    groupId:  'system_virtual',
-} as MediaDeviceInfo;
+
 
 // ── Hook ───────────────────────────────────────────────────────────────────────
 
@@ -55,6 +50,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     const [recordedBlob,      setRecordedBlob]       = useState<Blob | null>(null);
     const [devices,           setDevices]            = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId,  setSelectedDeviceId]   = useState<string>('');
+    const [isSystemAudioActive, setIsSystemAudioActive] = useState<boolean>(false);
 
     const waveContainerRef  = useRef<HTMLDivElement>(null!);
     const wavesurferRef     = useRef<WaveSurfer | null>(null);
@@ -103,7 +99,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             }
             const all    = await navigator.mediaDevices.enumerateDevices();
             const inputs = all.filter(d => d.kind === 'audioinput');
-            setDevices([...inputs, SYSTEM_AUDIO_DEVICE]);
+            setDevices(inputs);
             if (inputs.length > 0 && !selectedDeviceId) {
                 const def = inputs.find(d => d.deviceId === 'default') || inputs[0];
                 setSelectedDeviceId(def.deviceId);
@@ -128,24 +124,17 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
 
     useEffect(() => () => cleanup(), [cleanup]);
 
-    // ── WaveSurfer init on recording start ────────────────────────────────────
 
-    useEffect(() => {
-        if (!isRecording || isPaused) return;
-        const timeout = setTimeout(() => initWaveSurfer(), 100);
-        return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isRecording]);
 
     // ── initWaveSurfer ────────────────────────────────────────────────────────
 
-    async function getMediaStream(): Promise<MediaStream> {
+    async function getMediaStream(withSystemAudio: boolean): Promise<MediaStream> {
         // Always get MIC first as baseline
         const micStream = await navigator.mediaDevices.getUserMedia({ 
-            audio: selectedDeviceId === 'system_audio' ? true : { deviceId: selectedDeviceId } 
+            audio: selectedDeviceId ? { deviceId: selectedDeviceId } : true 
         });
 
-        if (selectedDeviceId !== 'system_audio') {
+        if (!withSystemAudio) {
             return micStream;
         }
 
@@ -221,7 +210,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         tick();
     }
 
-    async function initWaveSurfer() {
+    async function initWaveSurfer(stream: MediaStream) {
         if (!waveContainerRef.current) return;
         cleanup();
 
@@ -257,9 +246,9 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
                 setRecordedBlob(blob);
                 setIsRecording(false);
                 setIsPaused(false);
+                setIsSystemAudioActive(false);
             });
 
-            const stream = await getMediaStream();
             (record as any).stream = stream;
 
             // For RecordPlugin to work with our manual stream, we bypass its internal getUserMedia
@@ -285,11 +274,31 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
 
     // ── Public controls ───────────────────────────────────────────────────────
 
-    const startRecording = () => {
+    const startRecording = async (withSystemAudio: boolean = false) => {
         setRecordedBlob(null);
         setTimer(0);
-        setIsRecording(true);
-        setIsPaused(false);
+        
+        try {
+            // Retrieve stream immediately on user click to avoid browser permission block
+            const stream = await getMediaStream(withSystemAudio);
+            
+            setIsSystemAudioActive(withSystemAudio);
+            setIsRecording(true);
+            setIsPaused(false);
+
+            // Give React time to mount the wave container before initializing WaveSurfer
+            setTimeout(() => {
+                initWaveSurfer(stream);
+            }, 100);
+        } catch (err: any) {
+            console.error('startRecording error:', err);
+            const msg = err.message ?? '';
+            if (msg.includes('Permission denied') || msg.includes('NotAllowedError')) {
+                alert('Permissions denied or user dismissed dialog. Please allow camera/microphone access in your browser settings.');
+            } else {
+                alert(`Recording error: ${msg}`);
+            }
+        }
     };
 
     const pauseResume = () => {
@@ -324,6 +333,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         devices, selectedDeviceId, setSelectedDeviceId,
         waveContainerRef,
         startRecording, pauseResume, stopRecording, resetRecording,
+        isSystemAudioActive,
     };
 }
 

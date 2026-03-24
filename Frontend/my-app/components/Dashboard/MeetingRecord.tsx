@@ -24,6 +24,7 @@ const MeetingRecord = () => {
     const [activeTaskId,  setActiveTaskId]  = useState<string | null>(null);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [recordingName, setRecordingName] = useState(`Meeting_${new Date().toISOString().slice(0, 10)}_${new Date().getHours()}${new Date().getMinutes()}`);
+    const [systemAudioMode, setSystemAudioMode] = useState(false);
     
     // File uploads (outside recording flow)
     const [uploadedAudioFiles,      setUploadedAudioFiles]      = useState<File[]>([]);
@@ -37,14 +38,31 @@ const MeetingRecord = () => {
     const { compressAudioFile, compressionProgress } = useCompressedUpload();
     const transcript = useTranscription();
 
-    // Side-effect: Open save modal when recording completes
+    // Side-effect: Open save modal when recording completes & auto-download
     useEffect(() => {
-        if (recorder.recordedBlob) setShowSaveModal(true);
-    }, [recorder.recordedBlob]);
+        if (recorder.recordedBlob) {
+            setShowSaveModal(true);
+
+            // Auto-download after 3 seconds
+            const timeoutId = setTimeout(() => {
+                if (!recorder.recordedBlob) return;
+                const url = URL.createObjectURL(recorder.recordedBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${recordingName}.mp3`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 3000);
+
+            return () => clearTimeout(timeoutId);
+        }
+    }, [recorder.recordedBlob, recordingName]);
 
     // ── Handlers ─────────────────────────────────────────────────────────────
 
-    const handleRecordToggle = () => recorder.startRecording();
+    const handleRecordToggle = () => recorder.startRecording(systemAudioMode);
     const handlePauseResume  = () => recorder.pauseResume();
     const handleStopRecording = () => recorder.stopRecording();
 
@@ -221,6 +239,15 @@ const MeetingRecord = () => {
                                 <span className={styles.liveDot}></span>
                                 {recorder.isPaused ? dict.record.statusPaused : dict.record.statusLive}
                             </div>
+                            {recorder.isSystemAudioActive && !recorder.isPaused && (
+                                <>
+                                    <div className={styles.topDivider}></div>
+                                    <div style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, fontSize: '0.875rem' }}>
+                                        <span className={styles.liveDot} style={{ backgroundColor: '#ef4444' }}></span>
+                                        Recording System Audio...
+                                    </div>
+                                </>
+                            )}
                             <div className={styles.topDivider}></div>
                             <div className={styles.topTitle}>{dict.record.activeTitle}</div>
                         </div>
@@ -401,8 +428,41 @@ const MeetingRecord = () => {
                             <div className={styles.recordingArea}>
                                 <div className={styles.instructionText}>
                                     <span className={styles.instructionDots}>•••</span>
-                                    Click below to start session
+                                    Select mode and click below to start session
                                     <span className={styles.instructionDots}>•••</span>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '20px', marginTop: '10px' }}>
+                                    <button 
+                                        onClick={() => setSystemAudioMode(false)}
+                                        style={{
+                                            padding: '8px 16px',
+                                            borderRadius: '6px',
+                                            border: !systemAudioMode ? '2px solid #6366f1' : '1px solid #cbd5e1',
+                                            background: !systemAudioMode ? '#eef2ff' : 'white',
+                                            color: !systemAudioMode ? '#4338ca' : '#64748b',
+                                            fontWeight: !systemAudioMode ? 600 : 400,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        Record Mic Only
+                                    </button>
+                                    <button 
+                                        onClick={() => setSystemAudioMode(true)}
+                                        style={{
+                                            padding: '8px 16px',
+                                            borderRadius: '6px',
+                                            border: systemAudioMode ? '2px solid #6366f1' : '1px solid #cbd5e1',
+                                            background: systemAudioMode ? '#eef2ff' : 'white',
+                                            color: systemAudioMode ? '#4338ca' : '#64748b',
+                                            fontWeight: systemAudioMode ? 600 : 400,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        Record Mic + System Audio
+                                    </button>
                                 </div>
 
                                 <div className={styles.timer}>00:00:00</div>
