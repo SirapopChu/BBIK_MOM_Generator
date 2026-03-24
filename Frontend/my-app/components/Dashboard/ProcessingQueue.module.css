@@ -32,6 +32,12 @@
     align-items: start;
 }
 
+@media (max-width: 1200px) {
+    .mainGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Panel Card Base */
 .panelCard {
     background: white;

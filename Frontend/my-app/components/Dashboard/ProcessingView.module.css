@@ -303,3 +303,39 @@
 .actionRow {
     z-index: 10;
 }
+
+@media (max-width: 640px) {
+    .title {
+        font-size: 1.5rem;
+        margin-bottom: 2rem;
+        padding: 0 1rem;
+    }
+
+    .progressContainer {
+        width: 240px;
+        height: 240px;
+    }
+
+    .circularProgress {
+        width: 200px;
+        height: 200px;
+    }
+
+    .circularProgressInner {
+        width: 180px;
+        height: 180px;
+    }
+
+    .percentage {
+        font-size: 3rem;
+    }
+
+    .logsPanel {
+        width: 90%;
+        height: 120px;
+    }
+
+    .outerCircle {
+        display: none;
+    }
+}

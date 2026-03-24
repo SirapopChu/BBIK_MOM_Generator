@@ -666,23 +666,23 @@ const MeetingRecord = () => {
 
             {/* ==== SAVE MODAL ==== */}
             {showSaveModal && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.6)', padding: '16px', backdropFilter: 'blur(4px)' }}>
-                    <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '520px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
-                        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-                            <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>{dict.record.saveTitle || 'Save Recording'}</h2>
-                            <button onClick={handleCloseSaveModal} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '24px', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '8px', transition: 'background 0.2s' }}>×</button>
+                <div className={styles.modalOverlay}>
+                    <div className={styles.saveModal}>
+                        <div className={styles.saveModalHeader}>
+                            <h2 className={styles.saveModalTitle}>{dict.record.saveTitle || 'Save Recording'}</h2>
+                            <button onClick={handleCloseSaveModal} className={styles.closeModalBtn}>×</button>
                         </div>
 
-                        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', backgroundColor: '#eff6ff', padding: '16px', borderRadius: '12px', border: '1px solid #bfdbfe' }}>
-                                <div style={{ color: '#3b82f6', display: 'flex', padding: '10px', backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                        <div className={styles.saveModalContent}>
+                            <div className={styles.savePreview}>
+                                <div className={styles.previewIcon}>
                                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-                                    <div style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div className={styles.previewDetails}>
+                                    <div className={styles.previewName}>
                                         {formatTime(recorder.timer)} {dict.record.duration || 'Recorded Audio'}
                                     </div>
-                                    <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
+                                    <div className={styles.previewSize}>
                                         File Size: {recorder.recordedBlob ? (recorder.recordedBlob.size / (1024 * 1024)).toFixed(2) : 0} MB
                                     </div>
                                 </div>
@@ -691,11 +691,11 @@ const MeetingRecord = () => {
                                 )}
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155', letterSpacing: '0.01em' }}>{dict.record.fileName || 'File Name'}</label>
+                            <div className={styles.inputGroup}>
+                                <label className={styles.inputLabel}>{dict.record.fileName || 'File Name'}</label>
                                 <input
                                     type="text"
-                                    style={{ padding: '14px 16px', border: '2px solid #e2e8f0', borderRadius: '10px', fontSize: '15px', color: '#0f172a', outline: 'none', width: '100%', boxSizing: 'border-box', transition: 'border-color 0.2s', fontWeight: 500 }}
+                                    className={styles.fileNameInput}
                                     value={recordingName}
                                     onChange={(e) => setRecordingName(e.target.value)}
                                     placeholder="Enter file name..."
@@ -708,30 +708,30 @@ const MeetingRecord = () => {
                             
                             {/* Transcript Preview */}
                             {transcript.transcriptResult && (
-                                <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
-                                    <div style={{ backgroundColor: '#f8fafc', padding: '14px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>Transcript Preview</span>
-                                        <button onClick={handleDownloadTranscript} style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', color: '#475569', fontWeight: 600, transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>Download .txt</button>
+                                <div className={styles.transcriptPanel}>
+                                    <div className={styles.transcriptPanelHeader}>
+                                        <span className={styles.transcriptPanelTitle}>Transcript Preview</span>
+                                        <button onClick={handleDownloadTranscript} className={styles.transcriptDownloadBtn}>Download .txt</button>
                                     </div>
-                                    <div style={{ padding: '16px', fontSize: '14px', color: '#334155', maxHeight: '180px', overflowY: 'auto', lineHeight: '1.6', backgroundColor: '#ffffff', whiteSpace: 'pre-wrap' }}>
+                                    <div className={styles.transcriptText}>
                                         {transcript.transcriptResult.text}
                                     </div>
                                 </div>
                             )}
 
                             {/* Actions / Buttons */}
-                            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                                <button style={{ flex: 1, padding: '14px', background: 'white', border: '2px solid #e2e8f0', borderRadius: '10px', color: '#64748b', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} onClick={handleCloseSaveModal}>
+                            <div className={styles.saveActions}>
+                                <button className={styles.btnSecondary} onClick={handleCloseSaveModal}>
                                     {dict.record.discard || 'Discard'}
                                 </button>
                                 
                                 {!transcript.transcriptResult && !transcript.isTranscribing && (
-                                    <button style={{ flex: 1, padding: '14px', background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: '10px', color: '#4f46e5', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} onClick={handleTranscribe}>
+                                    <button className={styles.btnSecondary} onClick={handleTranscribe}>
                                         {dict.record.previewTranscript || 'Preview'}
                                     </button>
                                 )}
 
-                                <button style={{ flex: 1.5, padding: '14px', background: '#4f46e5', border: 'none', borderRadius: '10px', color: 'white', fontWeight: 600, cursor: isProcessing ? 'not-allowed' : 'pointer', opacity: isProcessing ? 0.7 : 1, transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)' }} onClick={handleProcessRecordedAudio} disabled={isProcessing}>
+                                <button className={styles.btnPrimary} onClick={handleProcessRecordedAudio} disabled={isProcessing}>
                                     {isProcessing ? dict.common.loading || 'Loading...' : dict.record.processGen || 'Generate MOM'}
                                 </button>
                             </div>
