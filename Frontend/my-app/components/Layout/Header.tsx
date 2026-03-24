@@ -42,8 +42,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                 </div>
                 <div className={styles.avatar}>T</div>
             </div>
-        </div>
-        </header >
+        </header>
     );
 };
 
