@@ -1,9 +1,11 @@
 {
   "name": "backend",
   "version": "1.0.0",
+  "type": "module",
   "description": "This backend provides APIs for: 1. **Transcribing audio** using **OpenAI Whisper** (via OpenAI API). 2. **Generating meeting minutes** from transcripts using **Anthropic Claude**. 3. **Exporting minutes as DOCX** with a predefined bilingual (Thai/English) template. 4. **Task management** for long-running workflows (transcribe → analyze → export).",
   "main": "index.js",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "abort-controller": "^3.0.0",
     "accepts": "^1.3.8",
     "acorn": "^8.16.0",
