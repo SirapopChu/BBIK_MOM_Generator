@@ -231,12 +231,21 @@ const ProcessingQueue = () => {
                                         <div className={styles.queueItemRow}>
                                             <div className={styles.progressRingWrapper}>
                                                 <div className={styles.progressValue}>{task.progress}%</div>
-                                                <svg className={styles.progressRing} width="40" height="40">
-                                                    <circle className={styles.progressRingBg} cx="20" cy="20" r="16" />
+                                                <svg className={styles.progressRing} width="44" height="44" viewBox="0 0 44 44">
+                                                    <defs>
+                                                        <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                            <stop offset="0%" stopColor="#6366f1" />
+                                                            <stop offset="100%" stopColor="#4f46e5" />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <circle className={styles.progressRingBg} cx="22" cy="22" r="18" />
                                                     <circle 
                                                         className={styles.progressRingFill} 
-                                                        cx="20" cy="20" r="16" 
-                                                        style={{ strokeDashoffset: 100 - (task.progress || 0) }}
+                                                        cx="22" cy="22" r="18" 
+                                                        style={{ 
+                                                            strokeDasharray: 113, // 2 * PI * 18 approx
+                                                            strokeDashoffset: 113 - (113 * (task.progress || 0)) / 100 
+                                                        }}
                                                     />
                                                 </svg>
                                             </div>

@@ -194,6 +194,13 @@
     gap: 1.5rem;
 }
 
+@media (max-width: 640px) {
+    .row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
 .participantInputGroup {
     display: flex;
     gap: 0.5rem;
@@ -253,6 +260,12 @@
     display: flex;
     gap: 1rem;
     margin-bottom: 1.5rem;
+}
+
+@media (max-width: 640px) {
+    .radioGroup {
+        flex-direction: column;
+    }
 }
 
 .radioCard {

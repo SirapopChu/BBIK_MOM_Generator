@@ -244,6 +244,12 @@
     gap: 1.5rem;
 }
 
+@media (max-width: 640px) {
+    .configGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .configItem label {
     font-size: 0.875rem;
     font-weight: 600;

@@ -21,16 +21,16 @@ const MeetingRecord = () => {
     const { dict } = useI18n();
     // ── Local State ──────────────────────────────────────────────────────────
     const [isProcessing, setIsProcessing] = useState(false);
-    const [activeTaskId,  setActiveTaskId]  = useState<string | null>(null);
+    const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [recordingName, setRecordingName] = useState(`Meeting_${new Date().toISOString().slice(0, 10)}_${new Date().getHours()}${new Date().getMinutes()}`);
     const [systemAudioMode, setSystemAudioMode] = useState(false);
-    
+
     // File uploads (outside recording flow)
-    const [uploadedAudioFiles,      setUploadedAudioFiles]      = useState<File[]>([]);
+    const [uploadedAudioFiles, setUploadedAudioFiles] = useState<File[]>([]);
     const [uploadedTranscribeFiles, setUploadedTranscribeFiles] = useState<File[]>([]);
-    
-    const audioFileInputRef      = useRef<HTMLInputElement>(null);
+
+    const audioFileInputRef = useRef<HTMLInputElement>(null);
     const transcribeFileInputRef = useRef<HTMLInputElement>(null);
 
     // ── Production Hooks ─────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ const MeetingRecord = () => {
     // ── Handlers ─────────────────────────────────────────────────────────────
 
     const handleRecordToggle = () => recorder.startRecording(systemAudioMode);
-    const handlePauseResume  = () => recorder.pauseResume();
+    const handlePauseResume = () => recorder.pauseResume();
     const handleStopRecording = () => recorder.stopRecording();
 
     const handleCloseSaveModal = () => {
@@ -75,8 +75,8 @@ const MeetingRecord = () => {
     const handleDownloadMP3 = () => {
         if (!recorder.recordedBlob) return;
         const url = URL.createObjectURL(recorder.recordedBlob);
-        const a   = document.createElement('a');
-        a.href     = url;
+        const a = document.createElement('a');
+        a.href = url;
         a.download = `${recordingName}.mp3`;
         a.click();
         URL.revokeObjectURL(url);
@@ -98,16 +98,16 @@ const MeetingRecord = () => {
 
             const metadata = localStorage.getItem('meeting_metadata');
             const appModel = localStorage.getItem('app_llm_model');
-            const appLang  = localStorage.getItem('app_language');
+            const appLang = localStorage.getItem('app_language');
 
             const result = await api.processAudio(
-                targetBlob, 
-                `${name}.mp3`, 
-                appLang || 'th', 
+                targetBlob,
+                `${name}.mp3`,
+                appLang || 'th',
                 metadata,
                 appModel || null
             );
-            
+
             if (result.taskId) setActiveTaskId(result.taskId);
         } catch (err: any) {
             alert(`Pipeline failed: ${err.message}`);
@@ -137,9 +137,9 @@ const MeetingRecord = () => {
     const handleDownloadTranscript = () => {
         if (!transcript.transcriptResult) return;
         const blob = new Blob([transcript.transcriptResult.text], { type: 'text/plain;charset=utf-8' });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
         a.download = `${recordingName}.txt`;
         a.click();
         URL.revokeObjectURL(url);
@@ -152,13 +152,13 @@ const MeetingRecord = () => {
         setIsProcessing(true);
 
         try {
-            const text     = await file.text();
+            const text = await file.text();
             const metadata = localStorage.getItem('meeting_metadata');
-            const docBlob  = await api.exportDocx(text, file.name, metadata);
-            
+            const docBlob = await api.exportDocx(text, file.name, metadata);
+
             const url = URL.createObjectURL(docBlob);
-            const a   = document.createElement('a');
-            a.href     = url;
+            const a = document.createElement('a');
+            a.href = url;
             a.download = `${file.name.split('.')[0]}_minutes.docx`;
             a.click();
             URL.revokeObjectURL(url);
@@ -170,7 +170,7 @@ const MeetingRecord = () => {
     };
 
     // ── Simple Transcribe (Preview only) ────────────────────────────────────
-    const handleAudioUploadClick      = (e: React.MouseEvent) => {
+    const handleAudioUploadClick = (e: React.MouseEvent) => {
         audioFileInputRef.current?.click();
     };
     const handleTranscribeUploadClick = (e: React.MouseEvent) => {
@@ -190,10 +190,10 @@ const MeetingRecord = () => {
             const filesArray = Array.from(e.target.files);
             setUploadedTranscribeFiles(prev => [...prev, ...filesArray]);
         }
-        e.target.value = ''; 
+        e.target.value = '';
     };
 
-    const removeAudioFile      = (index: number) => setUploadedAudioFiles(prev => prev.filter((_, i) => i !== index));
+    const removeAudioFile = (index: number) => setUploadedAudioFiles(prev => prev.filter((_, i) => i !== index));
     const removeTranscribeFile = (index: number) => setUploadedTranscribeFiles(prev => prev.filter((_, i) => i !== index));
 
     const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.currentTarget.classList.add(styles.uploadAreaActive); };
@@ -267,20 +267,7 @@ const MeetingRecord = () => {
                                     />
                                 </div>
 
-                                <div className={styles.liveTranscriptionPro}>
-                                    <div className={styles.transcriptionProHeader}>
-                                        <div className={styles.transcriptionProTitle}>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
-                                            {dict.record.aiTranscription}
-                                        </div>
-                                    </div>
-                                    <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                                        {recorder.isPaused
-                                            ? dict.record.statusPaused
-                                            : <>{dict.record.listening} <span className={styles.cursorBlink}>_</span></>
-                                        }
-                                    </div>
-                                </div>
+
                             </div>
 
                             <div className={styles.recordingMainRight}>
@@ -454,7 +441,7 @@ const MeetingRecord = () => {
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '20px', marginTop: '10px' }}>
-                                    <button 
+                                    <button
                                         onClick={() => setSystemAudioMode(false)}
                                         style={{
                                             padding: '8px 16px',
@@ -469,7 +456,7 @@ const MeetingRecord = () => {
                                     >
                                         Record Mic Only
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => setSystemAudioMode(true)}
                                         style={{
                                             padding: '8px 16px',
@@ -489,7 +476,7 @@ const MeetingRecord = () => {
                                 <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                                     <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>MICROPHONE INPUT</div>
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <button 
+                                        <button
                                             onClick={recorder.toggleMicMute}
                                             style={{
                                                 padding: '8px',
@@ -545,13 +532,13 @@ const MeetingRecord = () => {
 
                             <div style={{ marginTop: '1.5rem' }}>
                                 <div className={styles.configTitle}>AUDIO FILE (.MP3, .WAV, .M4A)</div>
-                                <input 
-                                    type="file" 
-                                    ref={audioFileInputRef} 
-                                    style={{ display: 'none' }} 
-                                    multiple 
-                                    accept=".mp3,.wav,.m4a" 
-                                    onChange={handleAudioFileChange} 
+                                <input
+                                    type="file"
+                                    ref={audioFileInputRef}
+                                    style={{ display: 'none' }}
+                                    multiple
+                                    accept=".mp3,.wav,.m4a"
+                                    onChange={handleAudioFileChange}
                                 />
                                 <div
                                     className={styles.uploadArea}
@@ -577,15 +564,15 @@ const MeetingRecord = () => {
                                                         <span className={styles.uploadedFileSize}>{(file.size / (1024 * 1024)).toFixed(2)} MB</span>
                                                     </div>
                                                     <div className={styles.uploadedFileActions}>
-                                                        <button 
-                                                            className={styles.transcribeFileBtn} 
+                                                        <button
+                                                            className={styles.transcribeFileBtn}
                                                             onClick={(e) => { e.stopPropagation(); handleTranscribeUploadedAudio(file); }}
                                                             title="Process"
                                                         >
                                                             {dict.record.processBtn.split(' ')[0]}
                                                         </button>
-                                                        <button 
-                                                            className={styles.removeFileBtn} 
+                                                        <button
+                                                            className={styles.removeFileBtn}
                                                             onClick={(e) => { e.stopPropagation(); removeAudioFile(idx); }}
                                                             title="Remove"
                                                         >
@@ -602,13 +589,13 @@ const MeetingRecord = () => {
 
                             <div style={{ marginTop: '2rem' }}>
                                 <div className={styles.configTitle}>TRANSCRIPT FILE (.TXT, .MD, .DOCX)</div>
-                                <input 
-                                    type="file" 
-                                    ref={transcribeFileInputRef} 
-                                    style={{ display: 'none' }} 
-                                    multiple 
-                                    accept=".txt,.md,.docx" 
-                                    onChange={handleTranscribeFileChange} 
+                                <input
+                                    type="file"
+                                    ref={transcribeFileInputRef}
+                                    style={{ display: 'none' }}
+                                    multiple
+                                    accept=".txt,.md,.docx"
+                                    onChange={handleTranscribeFileChange}
                                 />
                                 <div
                                     className={styles.uploadArea}
@@ -632,8 +619,8 @@ const MeetingRecord = () => {
                                                         <span className={styles.uploadedFileName}>{file.name}</span>
                                                     </div>
                                                     <div className={styles.uploadedFileActions}>
-                                                        <button 
-                                                            className={styles.removeFileBtn} 
+                                                        <button
+                                                            className={styles.removeFileBtn}
                                                             onClick={(e) => { e.stopPropagation(); removeTranscribeFile(idx); }}
                                                             title="Remove"
                                                         >
@@ -705,7 +692,7 @@ const MeetingRecord = () => {
                             {/* Status Messages */}
                             {compressionProgress && <div style={{ color: '#2563eb', fontSize: '13px', fontWeight: 600, backgroundColor: '#dbeafe', padding: '14px', borderRadius: '8px', borderLeft: '4px solid #3b82f6', letterSpacing: '0.01em' }}>{compressionProgress}</div>}
                             {transcript.transcriptError && <div style={{ color: '#dc2626', fontSize: '13px', fontWeight: 600, backgroundColor: '#fee2e2', padding: '14px', borderRadius: '8px', borderLeft: '4px solid #ef4444', letterSpacing: '0.01em' }}>{transcript.transcriptError}</div>}
-                            
+
                             {/* Transcript Preview */}
                             {transcript.transcriptResult && (
                                 <div className={styles.transcriptPanel}>
@@ -724,7 +711,7 @@ const MeetingRecord = () => {
                                 <button className={styles.btnSecondary} onClick={handleCloseSaveModal}>
                                     {dict.record.discard || 'Discard'}
                                 </button>
-                                
+
                                 {!transcript.transcriptResult && !transcript.isTranscribing && (
                                     <button className={styles.btnSecondary} onClick={handleTranscribe}>
                                         {dict.record.previewTranscript || 'Preview'}
