@@ -83,5 +83,11 @@ The worker process handles the computationally expensive AI tasks in the backgro
 - **Authorization:** Handled via `src/middleware/auth.middleware.js`.
 - **Isolation:** The `TaskRepository` enforces a mandatory `user_id` check on *every* database query. It is impossible for one user to access another's tasks or files, even by manipulating `taskId`s.
 
+## 6. Data Retention Policy
+To ensure user privacy and minimize storage costs, the system follows a strict data retention policy:
+- **Audio Files:** Never stored on disk or in the database. They exist as Base64 strings in **Redis** only during the active processing queue. Once transcription is complete, the BullMQ job is removed, effectively deleting the audio data from the system.
+- **Transcripts:** Stored temporarily in the `task_logs` table for user visibility.
+- **DOCX Results:** Stored in the `task_results` table until the user deletes the task or clears their history.
+
 ---
-**Document updated on 2026-03-25 by Kunanan Wongsing**
+**Document updated on 2026-03-26 by Kunanan Wongsing**

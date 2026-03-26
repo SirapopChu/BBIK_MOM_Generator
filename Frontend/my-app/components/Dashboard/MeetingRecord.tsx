@@ -9,6 +9,7 @@ import { useCompressedUpload } from '../../hooks/useCompressedUpload';
 import { useTranscription } from '../../hooks/useTranscription';
 
 import { useI18n } from '../../contexts/LanguageContext';
+import { useRecording } from '../../contexts/RecordingContext';
 
 /**
  * MeetingRecord Component (Refactored)
@@ -19,6 +20,7 @@ import { useI18n } from '../../contexts/LanguageContext';
  */
 const MeetingRecord = () => {
     const { dict } = useI18n();
+    const { setIsRecording, setTimer } = useRecording();
     // ── Local State ──────────────────────────────────────────────────────────
     const [isProcessing, setIsProcessing] = useState(false);
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -37,6 +39,28 @@ const MeetingRecord = () => {
     const recorder = useAudioRecorder();
     const { compressAudioFile, compressionProgress } = useCompressedUpload();
     const transcript = useTranscription();
+
+    // Side-effect: Sync global recording status
+    useEffect(() => {
+        setIsRecording(recorder.isRecording);
+    }, [recorder.isRecording, setIsRecording]);
+
+    // Side-effect: Sync global timer
+    useEffect(() => {
+        setTimer(recorder.timer);
+    }, [recorder.timer, setTimer]);
+
+    // Prevent navigation while recording (Browser level)
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (recorder.isRecording) {
+                e.preventDefault();
+                e.returnValue = ''; // Required for some browsers
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [recorder.isRecording]);
 
     // Side-effect: Open save modal when recording completes & auto-download
     useEffect(() => {

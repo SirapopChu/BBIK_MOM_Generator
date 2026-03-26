@@ -1,6 +1,6 @@
 # Handover Specification: BBIK MOM Generator
 **Status:** Production Ready (v1.2.x)  
-**Last Update:** 2026-03-25  
+**Last Update:** 2026-03-26  
 
 ## 1. Project Overview
 BBIK MOM Generator is an enterprise-grade AI platform designed to capture and summarize professional meetings. It features a bilingual (Thai/English) interface and produces MOM in structured DOCX formats.
@@ -62,6 +62,13 @@ The DOCX logic is in `Backend/src/services/docx.service.js`. It uses `docx` (lib
 - **Screen Share Audio:** On MacOS/Chrome, the "Share System Audio" checkbox must be manually checked by the user in the browser popup.
 - **FFmpeg WASM:** Requires `SharedArrayBuffer` support; ensure headers (`Cross-Origin-Embedder-Policy` and `Cross-Origin-Opener-Policy`) are correctly set in production.
 - **Future Task (Phase 7):** **Speaker Diarization**. Whisper currently returns a single block of text. Integration with `pyannote` or another diarization service will be required to distinguish between multiple speakers.
+- **Privacy Design:** The system does **NOT** store raw audio files on disk or in the database. Audio data exists only in-memory (Redis) during the background processing job and is deleted immediately upon completion.
+
+## 7. Operational Documentation
+
+For day-to-day operations and future planning, refer to these documents:
+- **[Deployment Guide](./DEPLOYMENT.md)**: Steps to setup production environments and Docker maintenance.
+- **[Improvement Roadmap](./IMPROVEMENT.md)**: Quality feedback logs and prompt optimization plans for April 2026.
 
 ---
 

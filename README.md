@@ -40,6 +40,8 @@ The BBIK MOM Generator is an enterprise-grade solution for automating the captur
 For detailed technical guides and architectural deep-dives, please refer to the `docs/` folder:
 
 - **[Master Handoff Guide](./docs/HANDOVER_SPEC.md)**: Entry point for new developers.
+- **[Deployment Guide](./docs/DEPLOYMENT.md)**: Step-by-step production setup and Docker instructions.
+- **[Improvement Roadmap](./docs/IMPROVEMENT.md)**: Feedback logs and planned prompt optimizations for Q2/2026.
 - **[Architecture: Backend](./docs/ARCHITECTURE_BE.md)**: Database schema, AI pipeline, and API Specifications.
 - **[Architecture: Frontend](./docs/ARCHITECTURE_FE.md)**: Next.js structure, i18n system, and media processing.
 - **[CI/CD Strategy](./docs/CICD.md)**: Automation workflows and testing infrastructure.
