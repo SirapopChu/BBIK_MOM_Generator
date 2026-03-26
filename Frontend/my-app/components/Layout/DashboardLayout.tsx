@@ -21,6 +21,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
             <div className={styles.mainContent}>
                 <Header onMenuClick={() => setSidebarOpen(true)} />
+                
                 <main className={styles.contentScroll}>
                     {children}
                 </main>

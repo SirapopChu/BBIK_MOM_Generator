@@ -21,22 +21,19 @@ export interface UseAudioRecorderReturn {
     /** Available audio input devices, including the virtual system-audio entry. */
     devices:        MediaDeviceInfo[];
     selectedDeviceId: string;
-    setSelectedDeviceId: (id: string) => void;
+    setSelectedDeviceId: (id: string) => Promise<void>;
     /** DOM ref to mount the WaveSurfer waveform canvas into. */
     waveContainerRef: React.RefObject<HTMLDivElement>;
-    startRecording: () => void;
+    startRecording: (withSystemAudio?: boolean) => Promise<void>;
     pauseResume:    () => void;
     stopRecording:  () => void;
     resetRecording: () => void;
+    isSystemAudioActive: boolean;
+    isMicMuted: boolean;
+    toggleMicMute: () => void;
 }
 
-// Virtual device entry appended to the real device list.
-const SYSTEM_AUDIO_DEVICE: MediaDeviceInfo = {
-    deviceId: 'system_audio',
-    label:    'System Audio (Zoom/Teams/Meet)',
-    kind:     'audioinput',
-    groupId:  'system_virtual',
-} as MediaDeviceInfo;
+
 
 // ── Hook ───────────────────────────────────────────────────────────────────────
 
@@ -55,6 +52,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     const [recordedBlob,      setRecordedBlob]       = useState<Blob | null>(null);
     const [devices,           setDevices]            = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId,  setSelectedDeviceId]   = useState<string>('');
+    const [isSystemAudioActive, setIsSystemAudioActive] = useState<boolean>(false);
+    const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
 
     const waveContainerRef  = useRef<HTMLDivElement>(null!);
     const wavesurferRef     = useRef<WaveSurfer | null>(null);
@@ -103,7 +102,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             }
             const all    = await navigator.mediaDevices.enumerateDevices();
             const inputs = all.filter(d => d.kind === 'audioinput');
-            setDevices([...inputs, SYSTEM_AUDIO_DEVICE]);
+            setDevices(inputs);
             if (inputs.length > 0 && !selectedDeviceId) {
                 const def = inputs.find(d => d.deviceId === 'default') || inputs[0];
                 setSelectedDeviceId(def.deviceId);
@@ -128,76 +127,105 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
 
     useEffect(() => () => cleanup(), [cleanup]);
 
-    // ── WaveSurfer init on recording start ────────────────────────────────────
 
-    useEffect(() => {
-        if (!isRecording || isPaused) return;
-        const timeout = setTimeout(() => initWaveSurfer(), 100);
-        return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isRecording]);
 
     // ── initWaveSurfer ────────────────────────────────────────────────────────
 
-    async function getMediaStream(): Promise<MediaStream> {
-        // Always get MIC first as baseline
+    const changeMicrophone = async (deviceId: string) => {
+        setSelectedDeviceId(deviceId);
+
+        if (isRecording && recordPluginRef.current) {
+            try {
+                const newMicStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { deviceId }
+                });
+
+                if (isMicMuted) {
+                    newMicStream.getAudioTracks().forEach(t => { t.enabled = false; });
+                }
+
+                const activeStream = (recordPluginRef.current as any).stream as MediaStream;
+                const audioCtx = (activeStream as any)._audioCtx as AudioContext;
+                if (audioCtx) {
+                    const destination = (activeStream as any)._destination as MediaStreamAudioDestinationNode;
+                    const oldMicSource = (activeStream as any)._micSource as MediaStreamAudioSourceNode;
+                    const oldMicStream = (activeStream as any)._originalStreams[0] as MediaStream;
+
+                    if (oldMicStream) oldMicStream.getTracks().forEach(t => t.stop());
+                    if (oldMicSource) oldMicSource.disconnect();
+
+                    const newMicSource = audioCtx.createMediaStreamSource(newMicStream);
+                    newMicSource.connect(destination);
+
+                    (activeStream as any)._micSource = newMicSource;
+                    (activeStream as any)._originalStreams[0] = newMicStream;
+                }
+            } catch (err) {
+                console.error("Failed to dynamically swap microphone:", err);
+            }
+        }
+    };
+
+    async function getMediaStream(withSystemAudio: boolean): Promise<MediaStream> {
         const micStream = await navigator.mediaDevices.getUserMedia({ 
-            audio: selectedDeviceId === 'system_audio' ? true : { deviceId: selectedDeviceId } 
+            audio: selectedDeviceId ? { deviceId: selectedDeviceId } : true 
         });
 
-        if (selectedDeviceId !== 'system_audio') {
-            return micStream;
+        if (isMicMuted) {
+            micStream.getAudioTracks().forEach(t => { t.enabled = false; });
         }
 
-        try {
-            // Request System Audio (Display Media)
-            const displayStream = await navigator.mediaDevices.getDisplayMedia({ 
-                video: true, 
-                audio: {
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false,
-                } as any
-            });
+        const audioCtx = new AudioContext();
+        const destination = audioCtx.createMediaStreamDestination();
+        const micSource = audioCtx.createMediaStreamSource(micStream);
+        micSource.connect(destination);
 
-            const systemAudioTrack = displayStream.getAudioTracks()[0];
-            if (!systemAudioTrack) {
-                displayStream.getTracks().forEach(t => t.stop());
-                // Fallback to just MIC if user didn't share audio
-                console.warn('System audio track missing. Using MIC only.');
-                return micStream;
-            }
+        let displayStream: MediaStream | null = null;
+        let systemSource: MediaStreamAudioSourceNode | null = null;
 
-            // Mix MIC and System Audio using AudioContext
-            const audioCtx = new AudioContext();
-            const micSource = audioCtx.createMediaStreamSource(micStream);
-            const systemSource = audioCtx.createMediaStreamSource(new MediaStream([systemAudioTrack]));
-            const destination = audioCtx.createMediaStreamDestination();
+        if (withSystemAudio) {
+            try {
+                displayStream = await navigator.mediaDevices.getDisplayMedia({ 
+                    video: true, 
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                    } as any
+                });
 
-            micSource.connect(destination);
-            systemSource.connect(destination);
+                const systemAudioTrack = displayStream.getAudioTracks()[0];
+                if (systemAudioTrack) {
+                    systemSource = audioCtx.createMediaStreamSource(new MediaStream([systemAudioTrack]));
+                    systemSource.connect(destination);
 
-            const mixedStream = destination.stream;
-
-            // Carry references for cleanup
-            (mixedStream as any)._originalStreams = [micStream, displayStream];
-            (mixedStream as any)._audioCtx = audioCtx;
-
-            // Auto-stop recording if screen share is stopped manually
-            const videoTrack = displayStream.getVideoTracks()[0];
-            if (videoTrack) {
-                videoTrack.onended = () => {
-                    if (recordPluginRef.current?.isRecording()) {
-                        recordPluginRef.current.stopRecording();
+                    const videoTrack = displayStream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        videoTrack.onended = () => {
+                            if (recordPluginRef.current?.isRecording()) {
+                                recordPluginRef.current.stopRecording();
+                            }
+                        };
                     }
-                };
+                } else {
+                    displayStream.getTracks().forEach(t => t.stop());
+                    displayStream = null;
+                }
+            } catch (err) {
+                console.error('getDisplayMedia failed, falling back to MIC:', err);
             }
-
-            return mixedStream;
-        } catch (err) {
-            console.error('getDisplayMedia failed, falling back to MIC:', err);
-            return micStream;
         }
+
+        const mixedStream = destination.stream;
+        (mixedStream as any)._originalStreams = [micStream];
+        if (displayStream) {
+            (mixedStream as any)._originalStreams.push(displayStream);
+        }
+        (mixedStream as any)._audioCtx = audioCtx;
+        (mixedStream as any)._destination = destination;
+        (mixedStream as any)._micSource = micSource;
+
+        return mixedStream;
     }
 
     function attachVolumeMonitor(stream: MediaStream, getActive: () => boolean) {
@@ -221,7 +249,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         tick();
     }
 
-    async function initWaveSurfer() {
+    async function initWaveSurfer(stream: MediaStream) {
         if (!waveContainerRef.current) return;
         cleanup();
 
@@ -257,9 +285,9 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
                 setRecordedBlob(blob);
                 setIsRecording(false);
                 setIsPaused(false);
+                setIsSystemAudioActive(false);
             });
 
-            const stream = await getMediaStream();
             (record as any).stream = stream;
 
             // For RecordPlugin to work with our manual stream, we bypass its internal getUserMedia
@@ -285,11 +313,31 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
 
     // ── Public controls ───────────────────────────────────────────────────────
 
-    const startRecording = () => {
+    const startRecording = async (withSystemAudio: boolean = false) => {
         setRecordedBlob(null);
         setTimer(0);
-        setIsRecording(true);
-        setIsPaused(false);
+        
+        try {
+            // Retrieve stream immediately on user click to avoid browser permission block
+            const stream = await getMediaStream(withSystemAudio);
+            
+            setIsSystemAudioActive(withSystemAudio);
+            setIsRecording(true);
+            setIsPaused(false);
+
+            // Give React time to mount the wave container before initializing WaveSurfer
+            setTimeout(() => {
+                initWaveSurfer(stream);
+            }, 100);
+        } catch (err: any) {
+            console.error('startRecording error:', err);
+            const msg = err.message ?? '';
+            if (msg.includes('Permission denied') || msg.includes('NotAllowedError')) {
+                alert('Permissions denied or user dismissed dialog. Please allow camera/microphone access in your browser settings.');
+            } else {
+                alert(`Recording error: ${msg}`);
+            }
+        }
     };
 
     const pauseResume = () => {
@@ -319,11 +367,32 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         cleanup();
     };
 
+    const toggleMicMute = () => {
+        setIsMicMuted(prev => {
+            const nextMuted = !prev;
+            if (recordPluginRef.current) {
+                const stream = (recordPluginRef.current as any).stream as MediaStream;
+                if (stream) {
+                    let micStreamToMute: MediaStream | undefined = stream;
+                    if ((stream as any)._originalStreams && (stream as any)._originalStreams.length > 0) {
+                        micStreamToMute = (stream as any)._originalStreams[0];
+                    }
+                    if (micStreamToMute) {
+                        micStreamToMute.getAudioTracks().forEach(t => t.enabled = !nextMuted);
+                    }
+                }
+            }
+            return nextMuted;
+        });
+    };
+
     return {
         isRecording, isPaused, timer, volume, recordedBlob,
-        devices, selectedDeviceId, setSelectedDeviceId,
+        devices, selectedDeviceId, setSelectedDeviceId: changeMicrophone,
         waveContainerRef,
         startRecording, pauseResume, stopRecording, resetRecording,
+        isSystemAudioActive,
+        isMicMuted, toggleMicMute,
     };
 }
 

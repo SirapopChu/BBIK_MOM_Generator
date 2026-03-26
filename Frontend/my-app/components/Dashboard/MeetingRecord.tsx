@@ -9,6 +9,7 @@ import { useCompressedUpload } from '../../hooks/useCompressedUpload';
 import { useTranscription } from '../../hooks/useTranscription';
 
 import { useI18n } from '../../contexts/LanguageContext';
+import { useRecording } from '../../contexts/RecordingContext';
 
 /**
  * MeetingRecord Component (Refactored)
@@ -19,17 +20,19 @@ import { useI18n } from '../../contexts/LanguageContext';
  */
 const MeetingRecord = () => {
     const { dict } = useI18n();
+    const { setIsRecording, setTimer } = useRecording();
     // ── Local State ──────────────────────────────────────────────────────────
     const [isProcessing, setIsProcessing] = useState(false);
-    const [activeTaskId,  setActiveTaskId]  = useState<string | null>(null);
+    const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [recordingName, setRecordingName] = useState(`Meeting_${new Date().toISOString().slice(0, 10)}_${new Date().getHours()}${new Date().getMinutes()}`);
-    
+    const [systemAudioMode, setSystemAudioMode] = useState(false);
+
     // File uploads (outside recording flow)
-    const [uploadedAudioFiles,      setUploadedAudioFiles]      = useState<File[]>([]);
+    const [uploadedAudioFiles, setUploadedAudioFiles] = useState<File[]>([]);
     const [uploadedTranscribeFiles, setUploadedTranscribeFiles] = useState<File[]>([]);
-    
-    const audioFileInputRef      = useRef<HTMLInputElement>(null);
+
+    const audioFileInputRef = useRef<HTMLInputElement>(null);
     const transcribeFileInputRef = useRef<HTMLInputElement>(null);
 
     // ── Production Hooks ─────────────────────────────────────────────────────
@@ -37,15 +40,54 @@ const MeetingRecord = () => {
     const { compressAudioFile, compressionProgress } = useCompressedUpload();
     const transcript = useTranscription();
 
-    // Side-effect: Open save modal when recording completes
+    // Side-effect: Sync global recording status
     useEffect(() => {
-        if (recorder.recordedBlob) setShowSaveModal(true);
-    }, [recorder.recordedBlob]);
+        setIsRecording(recorder.isRecording);
+    }, [recorder.isRecording, setIsRecording]);
+
+    // Side-effect: Sync global timer
+    useEffect(() => {
+        setTimer(recorder.timer);
+    }, [recorder.timer, setTimer]);
+
+    // Prevent navigation while recording (Browser level)
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (recorder.isRecording) {
+                e.preventDefault();
+                e.returnValue = ''; // Required for some browsers
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [recorder.isRecording]);
+
+    // Side-effect: Open save modal when recording completes & auto-download
+    useEffect(() => {
+        if (recorder.recordedBlob) {
+            setShowSaveModal(true);
+
+            // Auto-download after 3 seconds
+            const timeoutId = setTimeout(() => {
+                if (!recorder.recordedBlob) return;
+                const url = URL.createObjectURL(recorder.recordedBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${recordingName}.mp3`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 3000);
+
+            return () => clearTimeout(timeoutId);
+        }
+    }, [recorder.recordedBlob, recordingName]);
 
     // ── Handlers ─────────────────────────────────────────────────────────────
 
-    const handleRecordToggle = () => recorder.startRecording();
-    const handlePauseResume  = () => recorder.pauseResume();
+    const handleRecordToggle = () => recorder.startRecording(systemAudioMode);
+    const handlePauseResume = () => recorder.pauseResume();
     const handleStopRecording = () => recorder.stopRecording();
 
     const handleCloseSaveModal = () => {
@@ -57,8 +99,8 @@ const MeetingRecord = () => {
     const handleDownloadMP3 = () => {
         if (!recorder.recordedBlob) return;
         const url = URL.createObjectURL(recorder.recordedBlob);
-        const a   = document.createElement('a');
-        a.href     = url;
+        const a = document.createElement('a');
+        a.href = url;
         a.download = `${recordingName}.mp3`;
         a.click();
         URL.revokeObjectURL(url);
@@ -80,16 +122,16 @@ const MeetingRecord = () => {
 
             const metadata = localStorage.getItem('meeting_metadata');
             const appModel = localStorage.getItem('app_llm_model');
-            const appLang  = localStorage.getItem('app_language');
+            const appLang = localStorage.getItem('app_language');
 
             const result = await api.processAudio(
-                targetBlob, 
-                `${name}.mp3`, 
-                appLang || 'th', 
+                targetBlob,
+                `${name}.mp3`,
+                appLang || 'th',
                 metadata,
                 appModel || null
             );
-            
+
             if (result.taskId) setActiveTaskId(result.taskId);
         } catch (err: any) {
             alert(`Pipeline failed: ${err.message}`);
@@ -119,9 +161,9 @@ const MeetingRecord = () => {
     const handleDownloadTranscript = () => {
         if (!transcript.transcriptResult) return;
         const blob = new Blob([transcript.transcriptResult.text], { type: 'text/plain;charset=utf-8' });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
         a.download = `${recordingName}.txt`;
         a.click();
         URL.revokeObjectURL(url);
@@ -134,13 +176,13 @@ const MeetingRecord = () => {
         setIsProcessing(true);
 
         try {
-            const text     = await file.text();
+            const text = await file.text();
             const metadata = localStorage.getItem('meeting_metadata');
-            const docBlob  = await api.exportDocx(text, file.name, metadata);
-            
+            const docBlob = await api.exportDocx(text, file.name, metadata);
+
             const url = URL.createObjectURL(docBlob);
-            const a   = document.createElement('a');
-            a.href     = url;
+            const a = document.createElement('a');
+            a.href = url;
             a.download = `${file.name.split('.')[0]}_minutes.docx`;
             a.click();
             URL.revokeObjectURL(url);
@@ -152,7 +194,7 @@ const MeetingRecord = () => {
     };
 
     // ── Simple Transcribe (Preview only) ────────────────────────────────────
-    const handleAudioUploadClick      = (e: React.MouseEvent) => {
+    const handleAudioUploadClick = (e: React.MouseEvent) => {
         audioFileInputRef.current?.click();
     };
     const handleTranscribeUploadClick = (e: React.MouseEvent) => {
@@ -172,10 +214,10 @@ const MeetingRecord = () => {
             const filesArray = Array.from(e.target.files);
             setUploadedTranscribeFiles(prev => [...prev, ...filesArray]);
         }
-        e.target.value = ''; 
+        e.target.value = '';
     };
 
-    const removeAudioFile      = (index: number) => setUploadedAudioFiles(prev => prev.filter((_, i) => i !== index));
+    const removeAudioFile = (index: number) => setUploadedAudioFiles(prev => prev.filter((_, i) => i !== index));
     const removeTranscribeFile = (index: number) => setUploadedTranscribeFiles(prev => prev.filter((_, i) => i !== index));
 
     const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.currentTarget.classList.add(styles.uploadAreaActive); };
@@ -221,6 +263,15 @@ const MeetingRecord = () => {
                                 <span className={styles.liveDot}></span>
                                 {recorder.isPaused ? dict.record.statusPaused : dict.record.statusLive}
                             </div>
+                            {recorder.isSystemAudioActive && !recorder.isPaused && (
+                                <>
+                                    <div className={styles.topDivider}></div>
+                                    <div style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 500, fontSize: '0.875rem' }}>
+                                        <span className={styles.liveDot} style={{ backgroundColor: '#ef4444' }}></span>
+                                        Recording System Audio...
+                                    </div>
+                                </>
+                            )}
                             <div className={styles.topDivider}></div>
                             <div className={styles.topTitle}>{dict.record.activeTitle}</div>
                         </div>
@@ -240,20 +291,7 @@ const MeetingRecord = () => {
                                     />
                                 </div>
 
-                                <div className={styles.liveTranscriptionPro}>
-                                    <div className={styles.transcriptionProHeader}>
-                                        <div className={styles.transcriptionProTitle}>
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
-                                            {dict.record.aiTranscription}
-                                        </div>
-                                    </div>
-                                    <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                                        {recorder.isPaused
-                                            ? dict.record.statusPaused
-                                            : <>{dict.record.listening} <span className={styles.cursorBlink}>_</span></>
-                                        }
-                                    </div>
-                                </div>
+
                             </div>
 
                             <div className={styles.recordingMainRight}>
@@ -317,7 +355,7 @@ const MeetingRecord = () => {
                                     className={styles.deviceSelect}
                                     value={recorder.selectedDeviceId}
                                     onChange={(e) => recorder.setSelectedDeviceId(e.target.value)}
-                                    disabled={recorder.isRecording}
+                                    title="You can change the microphone during the recording."
                                 >
                                     {recorder.devices.map(device => (
                                         <option key={device.deviceId} value={device.deviceId}>
@@ -329,6 +367,27 @@ const MeetingRecord = () => {
                         </div>
 
                         <div className={styles.footerControls}>
+                            <button
+                                style={{
+                                    background: recorder.isMicMuted ? '#fee2e2' : 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '12px',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: recorder.isMicMuted ? '#ef4444' : '#64748b'
+                                }}
+                                onClick={recorder.toggleMicMute}
+                                title={recorder.isMicMuted ? "Unmute Microphone" : "Mute Microphone"}
+                            >
+                                {recorder.isMicMuted ? (
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                                ) : (
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                                )}
+                            </button>
                             <button className={styles.btnPausePro} onClick={handlePauseResume} title={recorder.isPaused ? dict.record.resume : dict.record.pause}>
                                 {recorder.isPaused ? (
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#818cf8" stroke="none"><polygon points="5,3 19,12 5,21" /></svg>
@@ -401,8 +460,90 @@ const MeetingRecord = () => {
                             <div className={styles.recordingArea}>
                                 <div className={styles.instructionText}>
                                     <span className={styles.instructionDots}>•••</span>
-                                    Click below to start session
+                                    Select mode and click below to start session
                                     <span className={styles.instructionDots}>•••</span>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '20px', marginTop: '10px' }}>
+                                    <button
+                                        onClick={() => setSystemAudioMode(false)}
+                                        style={{
+                                            padding: '8px 16px',
+                                            borderRadius: '6px',
+                                            border: !systemAudioMode ? '2px solid #6366f1' : '1px solid #cbd5e1',
+                                            background: !systemAudioMode ? '#eef2ff' : 'white',
+                                            color: !systemAudioMode ? '#4338ca' : '#64748b',
+                                            fontWeight: !systemAudioMode ? 600 : 400,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        Record Mic Only
+                                    </button>
+                                    <button
+                                        onClick={() => setSystemAudioMode(true)}
+                                        style={{
+                                            padding: '8px 16px',
+                                            borderRadius: '6px',
+                                            border: systemAudioMode ? '2px solid #6366f1' : '1px solid #cbd5e1',
+                                            background: systemAudioMode ? '#eef2ff' : 'white',
+                                            color: systemAudioMode ? '#4338ca' : '#64748b',
+                                            fontWeight: systemAudioMode ? 600 : 400,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        Record Mic + System Audio
+                                    </button>
+                                </div>
+
+                                <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>MICROPHONE INPUT</div>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <button
+                                            onClick={recorder.toggleMicMute}
+                                            style={{
+                                                padding: '8px',
+                                                borderRadius: '6px',
+                                                border: '1px solid #cbd5e1',
+                                                background: recorder.isMicMuted ? '#fee2e2' : '#f8fafc',
+                                                color: recorder.isMicMuted ? '#ef4444' : '#64748b',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                transition: 'all 0.2s'
+                                            }}
+                                            title={recorder.isMicMuted ? "Unmute Microphone" : "Mute Microphone"}
+                                        >
+                                            {recorder.isMicMuted ? (
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                                            ) : (
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                                            )}
+                                        </button>
+                                        <select
+                                            style={{
+                                                padding: '8px 12px',
+                                                borderRadius: '6px',
+                                                border: '1px solid #cbd5e1',
+                                                background: '#f8fafc',
+                                                color: '#334155',
+                                                fontSize: '14px',
+                                                outline: 'none',
+                                                width: '240px',
+                                                cursor: 'pointer'
+                                            }}
+                                            value={recorder.selectedDeviceId}
+                                            onChange={(e) => recorder.setSelectedDeviceId(e.target.value)}
+                                        >
+                                            {recorder.devices.map(device => (
+                                                <option key={device.deviceId} value={device.deviceId}>
+                                                    {device.label || `Microphone ${device.deviceId.slice(0, 5)}`}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div className={styles.timer}>00:00:00</div>
@@ -415,13 +556,13 @@ const MeetingRecord = () => {
 
                             <div style={{ marginTop: '1.5rem' }}>
                                 <div className={styles.configTitle}>AUDIO FILE (.MP3, .WAV, .M4A)</div>
-                                <input 
-                                    type="file" 
-                                    ref={audioFileInputRef} 
-                                    style={{ display: 'none' }} 
-                                    multiple 
-                                    accept=".mp3,.wav,.m4a" 
-                                    onChange={handleAudioFileChange} 
+                                <input
+                                    type="file"
+                                    ref={audioFileInputRef}
+                                    style={{ display: 'none' }}
+                                    multiple
+                                    accept=".mp3,.wav,.m4a"
+                                    onChange={handleAudioFileChange}
                                 />
                                 <div
                                     className={styles.uploadArea}
@@ -447,15 +588,15 @@ const MeetingRecord = () => {
                                                         <span className={styles.uploadedFileSize}>{(file.size / (1024 * 1024)).toFixed(2)} MB</span>
                                                     </div>
                                                     <div className={styles.uploadedFileActions}>
-                                                        <button 
-                                                            className={styles.transcribeFileBtn} 
+                                                        <button
+                                                            className={styles.transcribeFileBtn}
                                                             onClick={(e) => { e.stopPropagation(); handleTranscribeUploadedAudio(file); }}
                                                             title="Process"
                                                         >
                                                             {dict.record.processBtn.split(' ')[0]}
                                                         </button>
-                                                        <button 
-                                                            className={styles.removeFileBtn} 
+                                                        <button
+                                                            className={styles.removeFileBtn}
                                                             onClick={(e) => { e.stopPropagation(); removeAudioFile(idx); }}
                                                             title="Remove"
                                                         >
@@ -472,13 +613,13 @@ const MeetingRecord = () => {
 
                             <div style={{ marginTop: '2rem' }}>
                                 <div className={styles.configTitle}>TRANSCRIPT FILE (.TXT, .MD, .DOCX)</div>
-                                <input 
-                                    type="file" 
-                                    ref={transcribeFileInputRef} 
-                                    style={{ display: 'none' }} 
-                                    multiple 
-                                    accept=".txt,.md,.docx" 
-                                    onChange={handleTranscribeFileChange} 
+                                <input
+                                    type="file"
+                                    ref={transcribeFileInputRef}
+                                    style={{ display: 'none' }}
+                                    multiple
+                                    accept=".txt,.md,.docx"
+                                    onChange={handleTranscribeFileChange}
                                 />
                                 <div
                                     className={styles.uploadArea}
@@ -502,8 +643,8 @@ const MeetingRecord = () => {
                                                         <span className={styles.uploadedFileName}>{file.name}</span>
                                                     </div>
                                                     <div className={styles.uploadedFileActions}>
-                                                        <button 
-                                                            className={styles.removeFileBtn} 
+                                                        <button
+                                                            className={styles.removeFileBtn}
                                                             onClick={(e) => { e.stopPropagation(); removeTranscribeFile(idx); }}
                                                             title="Remove"
                                                         >
@@ -539,39 +680,49 @@ const MeetingRecord = () => {
                 <div className={styles.modalOverlay}>
                     <div className={styles.saveModal}>
                         <div className={styles.saveModalHeader}>
-                            <h2 className={styles.saveModalTitle}>{dict.record.saveTitle}</h2>
-                            <button className={styles.closeModalBtn} onClick={handleCloseSaveModal}>×</button>
+                            <h2 className={styles.saveModalTitle}>{dict.record.saveTitle || 'Save Recording'}</h2>
+                            <button onClick={handleCloseSaveModal} className={styles.closeModalBtn}>×</button>
                         </div>
 
                         <div className={styles.saveModalContent}>
                             <div className={styles.savePreview}>
                                 <div className={styles.previewIcon}>
-                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="1.5"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
                                 </div>
                                 <div className={styles.previewDetails}>
-                                    <div className={styles.previewName}>{formatTime(recorder.timer)} {dict.record.duration}</div>
-                                    <div className={styles.previewSize}>{(recorder.recordedBlob!.size / (1024 * 1024)).toFixed(2)} MB</div>
-                                    {transcript.transcriptResult && (
-                                        <div className={styles.transcriptBadge}>Transcribed</div>
-                                    )}
+                                    <div className={styles.previewName}>
+                                        {formatTime(recorder.timer)} {dict.record.duration || 'Recorded Audio'}
+                                    </div>
+                                    <div className={styles.previewSize}>
+                                        File Size: {recorder.recordedBlob ? (recorder.recordedBlob.size / (1024 * 1024)).toFixed(2) : 0} MB
+                                    </div>
                                 </div>
+                                {transcript.transcriptResult && (
+                                    <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, letterSpacing: '0.02em' }}>Transcribed</div>
+                                )}
                             </div>
 
                             <div className={styles.inputGroup}>
-                                <label className={styles.inputLabel}>{dict.record.fileName}</label>
+                                <label className={styles.inputLabel}>{dict.record.fileName || 'File Name'}</label>
                                 <input
                                     type="text"
                                     className={styles.fileNameInput}
                                     value={recordingName}
                                     onChange={(e) => setRecordingName(e.target.value)}
+                                    placeholder="Enter file name..."
                                 />
                             </div>
 
+                            {/* Status Messages */}
+                            {compressionProgress && <div style={{ color: '#2563eb', fontSize: '13px', fontWeight: 600, backgroundColor: '#dbeafe', padding: '14px', borderRadius: '8px', borderLeft: '4px solid #3b82f6', letterSpacing: '0.01em' }}>{compressionProgress}</div>}
+                            {transcript.transcriptError && <div style={{ color: '#dc2626', fontSize: '13px', fontWeight: 600, backgroundColor: '#fee2e2', padding: '14px', borderRadius: '8px', borderLeft: '4px solid #ef4444', letterSpacing: '0.01em' }}>{transcript.transcriptError}</div>}
+
+                            {/* Transcript Preview */}
                             {transcript.transcriptResult && (
                                 <div className={styles.transcriptPanel}>
                                     <div className={styles.transcriptPanelHeader}>
-                                        <span>Transcript Preview</span>
-                                        <button onClick={handleDownloadTranscript}>Download .txt</button>
+                                        <span className={styles.transcriptPanelTitle}>Transcript Preview</span>
+                                        <button onClick={handleDownloadTranscript} className={styles.transcriptDownloadBtn}>Download .txt</button>
                                     </div>
                                     <div className={styles.transcriptText}>
                                         {transcript.transcriptResult.text}
@@ -579,23 +730,21 @@ const MeetingRecord = () => {
                                 </div>
                             )}
 
-                            {compressionProgress && <div className={styles.compressionStatus}>{compressionProgress}</div>}
-                            {transcript.transcriptError && <div className={styles.transcriptError}>{transcript.transcriptError}</div>}
-
+                            {/* Actions / Buttons */}
                             <div className={styles.saveActions}>
-                                <button className={styles.btnSecondary} onClick={handleCloseSaveModal}>{dict.record.discard}</button>
-                                
+                                <button className={styles.btnSecondary} onClick={handleCloseSaveModal}>
+                                    {dict.record.discard || 'Discard'}
+                                </button>
+
                                 {!transcript.transcriptResult && !transcript.isTranscribing && (
                                     <button className={styles.btnSecondary} onClick={handleTranscribe}>
-                                        {dict.record.previewTranscript}
+                                        {dict.record.previewTranscript || 'Preview'}
                                     </button>
                                 )}
 
-                                <button className={styles.btnWhisper} onClick={handleProcessRecordedAudio} disabled={isProcessing}>
-                                    {isProcessing ? dict.common.loading : dict.record.processGen}
+                                <button className={styles.btnPrimary} onClick={handleProcessRecordedAudio} disabled={isProcessing}>
+                                    {isProcessing ? dict.common.loading || 'Loading...' : dict.record.processGen || 'Generate MOM'}
                                 </button>
-                                
-                                <button className={styles.btnPrimary} onClick={handleDownloadMP3}>{dict.record.saveMp3}</button>
                             </div>
                         </div>
                     </div>

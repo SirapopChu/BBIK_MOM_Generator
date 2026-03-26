@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { RecordingProvider } from '@/contexts/RecordingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -28,8 +29,10 @@ export default function DashboardRootLayout({
     }
 
     return (
-        <LanguageProvider>
-            {children}
-        </LanguageProvider>
+        <RecordingProvider>
+            <LanguageProvider>
+                {children}
+            </LanguageProvider>
+        </RecordingProvider>
     );
 }

@@ -208,8 +208,6 @@ __marimo__/
 
 # Backend Node.js dependencies
 Backend/node_modules/
-Backend/.env
-Backend/package-lock.json
 
 # Frontend Node.js dependencies
 Frontend/node_modules/

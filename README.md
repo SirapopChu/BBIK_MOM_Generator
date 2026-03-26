@@ -8,7 +8,9 @@ The BBIK MOM Generator is an enterprise-grade solution for automating the captur
 
 ## 1. Key Features
 
-- **Professional Recording Dashboard:** Real-time audio visualization (WaveSurfer.js) and system/mic audio capture.
+- **Dual-Source Recording (System + Mic):** High-fidelity capture of both browser audio (Teams/Zoom) and the user's local microphone.
+- **Dynamic Device Support:** Seamlessly switch microphones during an active recording session without interruption.
+- **Modern Typography:** Optimized for Thai/English readability using **Noto Sans Thai** and **Prompt** Google Fonts.
 - **Client-Side Compression:** FFmpeg WASM integration to compress audio before upload, ensuring high performance for long meetings.
 - **Bilingual Intelligence:** 100% Thai/English parity for both the UI and the generated AI summaries.
 - **Enterprise Security:** JWT-based authentication with strict data isolation for multi-tenant occupancy.
@@ -21,7 +23,9 @@ The BBIK MOM Generator is an enterprise-grade solution for automating the captur
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | Next.js 16 (App Router), TypeScript, Tailwind CSS |
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript |
+| **Styling** | Tailwind CSS v4 (CSS-first config) |
+| **Fonts** | Noto Sans Thai, Prompt (Next/Font) |
 | **Backend API** | Node.js 21, Express 4 (ESM), JWT Auth |
 | **Database** | PostgreSQL 16 (Relational Persistence) |
 | **Worker Queue** | Redis 7, BullMQ (Asynchronous Tasks) |
@@ -35,12 +39,12 @@ The BBIK MOM Generator is an enterprise-grade solution for automating the captur
 
 For detailed technical guides and architectural deep-dives, please refer to the `docs/` folder:
 
-- **[Master Handoff Guide](./docs/README.md)**: Entry point for new developers.
-- **[Architecture: Backend](./docs/ARCHITECTURE_BE.md)**: Database schema, worker patterns, and AI pipeline.
-- **[Architecture: Frontend](./docs/ARCHITECTURE_FE.md)**: Next.js structure, i18n system, and media hooks.
-- **[API Specification](./docs/API_SPEC.md)**: Complete endpoint mapping and payloads.
+- **[Master Handoff Guide](./docs/HANDOVER_SPEC.md)**: Entry point for new developers.
+- **[Deployment Guide](./docs/DEPLOYMENT.md)**: Step-by-step production setup and Docker instructions.
+- **[Improvement Roadmap](./docs/IMPROVEMENT.md)**: Feedback logs and planned prompt optimizations for Q2/2026.
+- **[Architecture: Backend](./docs/ARCHITECTURE_BE.md)**: Database schema, AI pipeline, and API Specifications.
+- **[Architecture: Frontend](./docs/ARCHITECTURE_FE.md)**: Next.js structure, i18n system, and media processing.
 - **[CI/CD Strategy](./docs/CICD.md)**: Automation workflows and testing infrastructure.
-- **[Project Roadmap](./docs/task.md)**: Current status and future milestones.
 
 ---
 

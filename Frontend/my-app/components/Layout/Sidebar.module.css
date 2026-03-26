@@ -102,6 +102,13 @@
     color: #ef4444;
 }
 
+.disabled {
+    opacity: 0.5;
+    cursor: default;
+    pointer-events: none;
+    filter: grayscale(1);
+}
+
 .signOutItem:hover {
     background-color: #fef2f2;
 }

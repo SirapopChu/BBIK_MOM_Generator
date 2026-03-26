@@ -2,7 +2,7 @@
     max-width: 800px;
     margin: 0 auto;
     padding: 2rem 1rem 4rem 1rem;
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: var(--font-noto-th), var(--font-prompt), -apple-system, sans-serif;
 }
 
 .stepperContainer {
@@ -56,6 +56,21 @@
     background-color: #e2e8f0;
     margin: -1.5rem 1rem 0 1rem;
     max-width: 60px;
+}
+
+@media (max-width: 640px) {
+    .stepLine {
+        margin: -1.5rem 0.5rem 0 0.5rem;
+        max-width: 30px;
+    }
+    
+    .title {
+        font-size: 1.5rem !important;
+    }
+    
+    .formContainer {
+        padding: 1.25rem !important;
+    }
 }
 
 .header {
@@ -179,6 +194,13 @@
     gap: 1.5rem;
 }
 
+@media (max-width: 640px) {
+    .row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
 .participantInputGroup {
     display: flex;
     gap: 0.5rem;
@@ -238,6 +260,12 @@
     display: flex;
     gap: 1rem;
     margin-bottom: 1.5rem;
+}
+
+@media (max-width: 640px) {
+    .radioGroup {
+        flex-direction: column;
+    }
 }
 
 .radioCard {

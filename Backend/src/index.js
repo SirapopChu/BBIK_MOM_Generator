@@ -8,9 +8,26 @@ import authRouter         from './routes/auth.routes.js';
 import { errorHandler }   from './middleware/errorHandler.js';
 import { authMiddleware } from './middleware/auth.middleware.js';
 import { initDb }           from './config/database.js';
+import UserRepository   from './repositories/UserRepository.js';
 
-// Initialize Database
-initDb().catch(console.error);
+// Initialize Database & Seed
+const startApp = async () => {
+    try {
+        await initDb();
+        
+        // Seed initial user if not exists
+        const testEmail = 'test@bbik.com';
+        const existing = await UserRepository.findByEmail(testEmail);
+        if (!existing) {
+            console.log(`[Seed] Creating default test user: ${testEmail}`);
+            await UserRepository.create(testEmail, 'password123', 'BBIK Test User');
+        }
+    } catch (err) {
+        console.error('Startup Error:', err);
+    }
+};
+
+startApp();
 
 const app = express();
 

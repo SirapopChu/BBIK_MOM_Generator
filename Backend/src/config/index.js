@@ -3,7 +3,7 @@ import 'dotenv/config';
 export const config = {
     anthropic: {
         apiKey: process.env.ANTHROPIC_API_KEY,
-        model:  process.env.ANTHROPIC_MODEL || 'claude-opus-4-5',
+        model:  process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
     },
     openai: {
         apiKey: process.env.OPENAI_API_KEY,
