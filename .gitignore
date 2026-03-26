@@ -209,7 +209,6 @@ __marimo__/
 # Backend Node.js dependencies
 Backend/node_modules/
 
-
 # Frontend Node.js dependencies
 Frontend/node_modules/
 Frontend/.DS_Store

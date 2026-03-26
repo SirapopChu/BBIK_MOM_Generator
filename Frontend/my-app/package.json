@@ -1,6 +1,7 @@
 {
   "name": "my-app",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,7 +14,7 @@
     "@ffmpeg/util": "^0.12.2",
     "autoprefixer": "^10.4.27",
     "js-cookie": "^3.0.5",
-    "next": "16.1.6",
+    "next": "^16.2.1",
     "postcss": "^8.5.8",
     "react": "19.2.3",
     "react-dom": "19.2.3",
