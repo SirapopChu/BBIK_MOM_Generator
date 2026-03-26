@@ -87,4 +87,4 @@ The application will be available at:
 ---
 
 ## 6. License & Compliance
-This software is internal property of BBIK Technology. Unauthorized distribution or reproduction is strictly prohibited.
+This software is internal property of BBIK. Unauthorized distribution or reproduction is strictly prohibited.
