@@ -24,6 +24,7 @@ services:
       - DATABASE_URL=postgresql://user:password@db:5432/mom_generator
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - TZ=Asia/Bangkok
     ports:
       - "3001:3001"
     restart: unless-stopped
@@ -67,6 +68,7 @@ services:
       - DATABASE_URL=postgresql://user:password@db:5432/mom_generator
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - TZ=Asia/Bangkok
 
   frontend:
     build:
