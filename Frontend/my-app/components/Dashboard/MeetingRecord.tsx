@@ -284,11 +284,33 @@ const MeetingRecord = () => {
                                     <div className={styles.timerProText}>{formatTime(recorder.timer)}</div>
                                     <div className={styles.timerProLabel}>{dict.record.elapsedTime}</div>
 
-                                    <div
-                                        ref={recorder.waveContainerRef}
-                                        className={styles.waveBox}
-                                        style={{ width: '100%', height: '100px' }}
-                                    />
+                                    <div className={styles.waveContainer}>
+                                        <div className={styles.waveGroup}>
+                                            <div className={styles.waveLabel}>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path></svg>
+                                                MICROPHONE
+                                            </div>
+                                            <div
+                                                ref={recorder.waveContainerRef}
+                                                className={styles.waveBox}
+                                                style={{ width: '100%', height: '60px' }}
+                                            />
+                                        </div>
+
+                                        {recorder.isSystemAudioActive && (
+                                            <div className={styles.waveGroup}>
+                                                <div className={styles.waveLabel} style={{ color: '#ef4444' }}>
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                                                    SYSTEM AUDIO
+                                                </div>
+                                                <div
+                                                    ref={recorder.systemWaveContainerRef}
+                                                    className={styles.waveBox}
+                                                    style={{ width: '100%', height: '60px', borderColor: '#fee2e2' }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
 

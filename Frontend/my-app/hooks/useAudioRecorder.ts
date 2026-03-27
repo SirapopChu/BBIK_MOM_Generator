@@ -22,8 +22,10 @@ export interface UseAudioRecorderReturn {
     devices:        MediaDeviceInfo[];
     selectedDeviceId: string;
     setSelectedDeviceId: (id: string) => Promise<void>;
-    /** DOM ref to mount the WaveSurfer waveform canvas into. */
+    /** DOM ref to mount the Mic waveform canvas into. */
     waveContainerRef: React.RefObject<HTMLDivElement>;
+    /** DOM ref to mount the System Audio waveform canvas into. */
+    systemWaveContainerRef: React.RefObject<HTMLDivElement>;
     startRecording: (withSystemAudio?: boolean) => Promise<void>;
     pauseResume:    () => void;
     stopRecording:  () => void;
@@ -55,38 +57,56 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     const [isSystemAudioActive, setIsSystemAudioActive] = useState<boolean>(false);
     const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
 
-    const waveContainerRef  = useRef<HTMLDivElement>(null!);
-    const wavesurferRef     = useRef<WaveSurfer | null>(null);
-    const recordPluginRef   = useRef<RecordPluginInstance | null>(null);
-    const timerIntervalRef  = useRef<NodeJS.Timeout | null>(null);
+    const waveContainerRef        = useRef<HTMLDivElement>(null!);
+    const systemWaveContainerRef  = useRef<HTMLDivElement>(null!);
+    
+    const wavesurferRef           = useRef<WaveSurfer | null>(null);
+    const systemWavesurferRef     = useRef<WaveSurfer | null>(null);
+    
+    const recordPluginRef         = useRef<RecordPluginInstance | null>(null);
+    const systemRecordPluginRef   = useRef<RecordPluginInstance | null>(null);
+    const mediaRecorderRef        = useRef<MediaRecorder | null>(null);
+    const chunksRef               = useRef<Blob[]>([]);
+    
+    const timerIntervalRef        = useRef<NodeJS.Timeout | null>(null);
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
-    const formatTime = (s: number) => {
-        const h = Math.floor(s / 3600);
-        const m = Math.floor((s % 3600) / 60);
-        const sec = s % 60;
-        return [h, m, sec].map(n => String(n).padStart(2, '0')).join(':');
-    };
-
     const cleanup = useCallback(() => {
+        if (mediaRecorderRef.current) {
+            try { 
+                if (mediaRecorderRef.current.state !== 'inactive') {
+                    mediaRecorderRef.current.stop(); 
+                }
+            } catch { /* ignored */ }
+            mediaRecorderRef.current = null;
+        }
+
         if (recordPluginRef.current) {
             try {
-                const rec = recordPluginRef.current;
-                const stream = (rec as any).stream;
-                if (stream) {
-                    stream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
-                    if (stream._originalStreams) {
-                        stream._originalStreams.forEach((s: MediaStream) => s.getTracks().forEach((t: MediaStreamTrack) => t.stop()));
-                    }
+                if (recordPluginRef.current.isRecording() || recordPluginRef.current.isPaused()) {
+                    recordPluginRef.current.stopRecording();
                 }
-                if (rec.isRecording() || rec.isPaused()) rec.stopRecording();
-            } catch { /* best effort */ }
+            } catch { /* ignored */ }
             recordPluginRef.current = null;
         }
+
+        if (systemRecordPluginRef.current) {
+            try {
+                if (systemRecordPluginRef.current.isRecording() || systemRecordPluginRef.current.isPaused()) {
+                    systemRecordPluginRef.current.stopRecording();
+                }
+            } catch { /* ignored */ }
+            systemRecordPluginRef.current = null;
+        }
+
         if (wavesurferRef.current) {
-            try { wavesurferRef.current.destroy(); } catch { /* best effort */ }
+            try { wavesurferRef.current.destroy(); } catch { /* ignored */ }
             wavesurferRef.current = null;
+        }
+        if (systemWavesurferRef.current) {
+            try { systemWavesurferRef.current.destroy(); } catch { /* ignored */ }
+            systemWavesurferRef.current = null;
         }
     }, []);
 
@@ -128,45 +148,9 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     useEffect(() => () => cleanup(), [cleanup]);
 
 
+    // ── Internal Methods ───────────────────────────────────────────────────────
 
-    // ── initWaveSurfer ────────────────────────────────────────────────────────
-
-    const changeMicrophone = async (deviceId: string) => {
-        setSelectedDeviceId(deviceId);
-
-        if (isRecording && recordPluginRef.current) {
-            try {
-                const newMicStream = await navigator.mediaDevices.getUserMedia({
-                    audio: { deviceId }
-                });
-
-                if (isMicMuted) {
-                    newMicStream.getAudioTracks().forEach(t => { t.enabled = false; });
-                }
-
-                const activeStream = (recordPluginRef.current as any).stream as MediaStream;
-                const audioCtx = (activeStream as any)._audioCtx as AudioContext;
-                if (audioCtx) {
-                    const destination = (activeStream as any)._destination as MediaStreamAudioDestinationNode;
-                    const oldMicSource = (activeStream as any)._micSource as MediaStreamAudioSourceNode;
-                    const oldMicStream = (activeStream as any)._originalStreams[0] as MediaStream;
-
-                    if (oldMicStream) oldMicStream.getTracks().forEach(t => t.stop());
-                    if (oldMicSource) oldMicSource.disconnect();
-
-                    const newMicSource = audioCtx.createMediaStreamSource(newMicStream);
-                    newMicSource.connect(destination);
-
-                    (activeStream as any)._micSource = newMicSource;
-                    (activeStream as any)._originalStreams[0] = newMicStream;
-                }
-            } catch (err) {
-                console.error("Failed to dynamically swap microphone:", err);
-            }
-        }
-    };
-
-    async function getMediaStream(withSystemAudio: boolean): Promise<MediaStream> {
+    async function getMediaStreams(withSystemAudio: boolean) {
         const micStream = await navigator.mediaDevices.getUserMedia({ 
             audio: selectedDeviceId ? { deviceId: selectedDeviceId } : true 
         });
@@ -202,9 +186,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
                     const videoTrack = displayStream.getVideoTracks()[0];
                     if (videoTrack) {
                         videoTrack.onended = () => {
-                            if (recordPluginRef.current?.isRecording()) {
-                                recordPluginRef.current.stopRecording();
-                            }
+                            stopRecording();
                         };
                     }
                 } else {
@@ -225,7 +207,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         (mixedStream as any)._destination = destination;
         (mixedStream as any)._micSource = micSource;
 
-        return mixedStream;
+        return { mixedStream, micStream, displayStream };
     }
 
     function attachVolumeMonitor(stream: MediaStream, getActive: () => boolean) {
@@ -249,86 +231,146 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         tick();
     }
 
-    async function initWaveSurfer(stream: MediaStream) {
-        if (!waveContainerRef.current) return;
-        cleanup();
+    async function initWaveSurfers(mixedStream: MediaStream, micStream: MediaStream, displayStream: MediaStream | null) {
+        // 1. Setup Background MediaRecorder for the actual data
+        const mediaRecorder = new MediaRecorder(mixedStream, { mimeType: 'audio/webm' });
+        chunksRef.current = [];
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) chunksRef.current.push(e.data);
+        };
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+            setRecordedBlob(blob);
+            
+            // Cleanup streams
+            mixedStream.getTracks().forEach(t => t.stop());
+            if ((mixedStream as any)._originalStreams) {
+                (mixedStream as any)._originalStreams.forEach((s: MediaStream) => s.getTracks().forEach((t: MediaStreamTrack) => t.stop()));
+            }
+            if ((mixedStream as any)._audioCtx) (mixedStream as any)._audioCtx.close();
+            
+            setIsRecording(false);
+            setIsPaused(false);
+            setIsSystemAudioActive(false);
+        };
+        mediaRecorder.start();
+        mediaRecorderRef.current = mediaRecorder;
 
-        try {
+        // 2. Setup Microphones WaveSurfer (Visualization only) [Uses micStream]
+        if (waveContainerRef.current) {
             const wavesurfer = WaveSurfer.create({
                 container:     waveContainerRef.current,
                 waveColor:     '#6366f1',
                 progressColor: '#818cf8',
-                height:        90,
-                barWidth:      3,
-                barGap:        3,
+                height:        60,
+                barWidth:      2,
+                barGap:        2,
                 barRadius:     2,
                 interact:      false,
                 cursorWidth:   0,
             });
 
             const record = wavesurfer.registerPlugin(
-                RecordPlugin.create({ renderRecordedAudio: false, scrollingWaveform: true, scrollingWaveformWindow: 10 })
+                RecordPlugin.create({ renderRecordedAudio: false, scrollingWaveform: true, scrollingWaveformWindow: 6 })
             ) as RecordPluginInstance;
 
             wavesurferRef.current   = wavesurfer;
             recordPluginRef.current = record;
 
-            record.on('record-end', (blob: Blob) => {
-                const stream = (record as any).stream;
-                if (stream) {
-                    stream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
-                    if (stream._originalStreams) {
-                        stream._originalStreams.forEach((s: MediaStream) => s.getTracks().forEach((t: MediaStreamTrack) => t.stop()));
-                    }
-                    if (stream._audioCtx) stream._audioCtx.close();
-                }
-                setRecordedBlob(blob);
-                setIsRecording(false);
-                setIsPaused(false);
-                setIsSystemAudioActive(false);
+            await record.startRecording({ stream: micStream });
+        }
+
+        // 3. Setup System Audio WaveSurfer (Visualization only)
+        if (displayStream && systemWaveContainerRef.current) {
+            const systemWavesurfer = WaveSurfer.create({
+                container:     systemWaveContainerRef.current,
+                waveColor:     '#ef4444',
+                progressColor: '#f87171',
+                height:        60,
+                barWidth:      2,
+                barGap:        2,
+                barRadius:     2,
+                interact:      false,
+                cursorWidth:   0,
             });
 
-            (record as any).stream = stream;
+            const systemRecord = systemWavesurfer.registerPlugin(
+                RecordPlugin.create({ renderRecordedAudio: false, scrollingWaveform: true, scrollingWaveformWindow: 6 })
+            ) as RecordPluginInstance;
 
-            // For RecordPlugin to work with our manual stream, we bypass its internal getUserMedia
-            await record.startRecording({ stream });
+            systemWavesurferRef.current   = systemWavesurfer;
+            systemRecordPluginRef.current = systemRecord;
 
-            attachVolumeMonitor(
-                stream,
-                () => isRecording && !isPaused,
-            );
-
-        } catch (err: any) {
-            console.error('initWaveSurfer error:', err);
-            const msg = err.message ?? '';
-            if (msg.includes('Permission denied')) {
-                alert('Permissions denied. Please allow camera/microphone access in your browser settings.');
-            } else {
-                alert(`Recording error: ${msg}`);
-            }
-            setIsRecording(false);
-            cleanup();
+            await systemRecord.startRecording({ stream: displayStream });
         }
+
+        attachVolumeMonitor(
+            mixedStream,
+            () => isRecording && !isPaused,
+        );
     }
 
     // ── Public controls ───────────────────────────────────────────────────────
+
+    const changeMicrophone = async (deviceId: string) => {
+        setSelectedDeviceId(deviceId);
+
+        if (isRecording && wavesurferRef.current) {
+            try {
+                const newMicStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { deviceId }
+                });
+
+                if (isMicMuted) {
+                    newMicStream.getAudioTracks().forEach(t => { t.enabled = false; });
+                }
+
+                // Update the Mixed Stream Backend
+                const activeStream = (mediaRecorderRef.current as any).stream as MediaStream;
+                const audioCtx = (activeStream as any)._audioCtx as AudioContext;
+                
+                if (audioCtx) {
+                    const destination = (activeStream as any)._destination as MediaStreamAudioDestinationNode;
+                    const oldMicSource = (activeStream as any)._micSource as MediaStreamAudioSourceNode;
+                    const oldMicStream = (activeStream as any)._originalStreams[0] as MediaStream;
+
+                    if (oldMicStream) oldMicStream.getTracks().forEach(t => t.stop());
+                    if (oldMicSource) oldMicSource.disconnect();
+
+                    const newMicSource = audioCtx.createMediaStreamSource(newMicStream);
+                    newMicSource.connect(destination);
+
+                    (activeStream as any)._micSource = newMicSource;
+                    (activeStream as any)._originalStreams[0] = newMicStream;
+                }
+
+                // Update the visualizer
+                if (recordPluginRef.current) {
+                    recordPluginRef.current.stopRecording();
+                    await recordPluginRef.current.startRecording({ stream: newMicStream });
+                }
+
+            } catch (err) {
+                console.error("Failed to dynamically swap microphone:", err);
+            }
+        }
+    };
 
     const startRecording = async (withSystemAudio: boolean = false) => {
         setRecordedBlob(null);
         setTimer(0);
         
         try {
-            // Retrieve stream immediately on user click to avoid browser permission block
-            const stream = await getMediaStream(withSystemAudio);
+            const { mixedStream, micStream, displayStream } = await getMediaStreams(withSystemAudio);
             
             setIsSystemAudioActive(withSystemAudio);
             setIsRecording(true);
             setIsPaused(false);
 
-            // Give React time to mount the wave container before initializing WaveSurfer
+            // Give React time to mount the wave containers
             setTimeout(() => {
-                initWaveSurfer(stream);
-            }, 100);
+                initWaveSurfers(mixedStream, micStream, displayStream);
+            }, 150);
         } catch (err: any) {
             console.error('startRecording error:', err);
             const msg = err.message ?? '';
@@ -341,19 +383,26 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     };
 
     const pauseResume = () => {
-        if (!recordPluginRef.current) return;
-        if (isPaused) {
-            recordPluginRef.current.resumeRecording();
-            setIsPaused(false);
-        } else {
-            recordPluginRef.current.pauseRecording();
-            setIsPaused(true);
+        if (mediaRecorderRef.current) {
+            if (isPaused) {
+                mediaRecorderRef.current.resume();
+                recordPluginRef.current?.resumeRecording();
+                systemRecordPluginRef.current?.resumeRecording();
+                setIsPaused(false);
+            } else {
+                mediaRecorderRef.current.pause();
+                recordPluginRef.current?.pauseRecording();
+                systemRecordPluginRef.current?.pauseRecording();
+                setIsPaused(true);
+            }
         }
     };
 
     const stopRecording = () => {
-        if (recordPluginRef.current) {
-            recordPluginRef.current.stopRecording();
+        if (mediaRecorderRef.current) {
+            mediaRecorderRef.current.stop();
+            recordPluginRef.current?.stopRecording();
+            systemRecordPluginRef.current?.stopRecording();
         } else {
             setIsRecording(false);
             setIsPaused(false);
@@ -370,8 +419,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     const toggleMicMute = () => {
         setIsMicMuted(prev => {
             const nextMuted = !prev;
-            if (recordPluginRef.current) {
-                const stream = (recordPluginRef.current as any).stream as MediaStream;
+            if (mediaRecorderRef.current) {
+                const stream = (mediaRecorderRef.current as any).stream as MediaStream;
                 if (stream) {
                     let micStreamToMute: MediaStream | undefined = stream;
                     if ((stream as any)._originalStreams && (stream as any)._originalStreams.length > 0) {
@@ -389,7 +438,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     return {
         isRecording, isPaused, timer, volume, recordedBlob,
         devices, selectedDeviceId, setSelectedDeviceId: changeMicrophone,
-        waveContainerRef,
+        waveContainerRef, systemWaveContainerRef,
         startRecording, pauseResume, stopRecording, resetRecording,
         isSystemAudioActive,
         isMicMuted, toggleMicMute,
