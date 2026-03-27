@@ -34,6 +34,9 @@ export const en = {
         langHelper: "Controls the language used for generated summaries and action items.",
         pmoLabel: "Signatory / Saved By",
         pmoHelper: "This name will appear at the bottom of generated DOCX files.",
+        uiSection: "Application Interface",
+        uiLangLabel: "System Language",
+        uiLangHelper: "Choose the language for the dashboard and menus.",
         saveBtn: "Save Configuration",
         saveSuccess: "Settings saved successfully"
     },

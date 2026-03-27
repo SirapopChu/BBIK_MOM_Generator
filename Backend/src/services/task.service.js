@@ -81,7 +81,7 @@ class TaskRepository {
     }
 
     async addLog(taskId, msg) {
-        const time = new Date().toLocaleTimeString();
+        const time = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false });
         await query(
             'INSERT INTO task_logs (task_id, time, msg) VALUES ($1, $2, $3)',
             [taskId, time, msg]

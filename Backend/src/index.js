@@ -38,7 +38,11 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ── Routes ─────────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) =>
-    res.json({ status: 'ok', env: config.server.nodeEnv, ts: new Date().toISOString() })
+    res.json({ 
+        status: 'ok', 
+        env: config.server.nodeEnv, 
+        ts: new Date().toLocaleString('en-GB', { timeZone: 'Asia/Bangkok' }) 
+    })
 );
 
 app.use('/api/auth',       authRouter);
@@ -56,7 +60,7 @@ app.use(errorHandler);
 
 // ── Start ──────────────────────────────────────────────────────────────────────
 app.listen(config.server.port, () => {
-    const ts = new Date().toISOString();
+    const ts = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Bangkok' });
     console.log(`[${ts}] Server running on http://localhost:${config.server.port}`);
     console.log(`[${ts}] Env: ${config.server.nodeEnv} | Claude model: ${config.anthropic.model}`);
     console.log(`[${ts}] Endpoints: GET /health | POST /api/transcribe | POST /api/minutes/* | GET /api/tasks/*`);

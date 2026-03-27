@@ -14,24 +14,24 @@ export default function SettingsPage() {
     // Load initial settings from localStorage
     useEffect(() => {
         const savedModel = localStorage.getItem('app_llm_model');
-        const savedLang  = localStorage.getItem('app_language');
-        const savedPMO   = localStorage.getItem('app_pmo_name');
+        const savedLang = localStorage.getItem('app_language');
+        const savedPMO = localStorage.getItem('app_pmo_name');
 
         if (savedModel) setModel(savedModel);
-        if (savedLang)  setLanguage(savedLang);
-        if (savedPMO)   setPmoName(savedPMO);
+        if (savedLang) setLanguage(savedLang);
+        if (savedPMO) setPmoName(savedPMO);
     }, []);
 
     const handleSave = () => {
         localStorage.setItem('app_llm_model', model);
-        localStorage.setItem('app_language',  language);
-        localStorage.setItem('app_pmo_name',  pmoName);
-        
+        localStorage.setItem('app_language', language);
+        localStorage.setItem('app_pmo_name', pmoName);
+
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
     };
 
-    const { dict } = useI18n();
+    const { dict, ...languageContext } = useI18n();
 
     return (
         <DashboardLayout>
@@ -51,14 +51,13 @@ export default function SettingsPage() {
 
                         <div className={styles.formGroup}>
                             <label className={styles.label}>{dict.settings.modelLabel}</label>
-                            <select 
+                            <select
                                 className={styles.select}
                                 value={model}
                                 onChange={(e) => setModel(e.target.value)}
                             >
                                 <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Balanced)</option>
-                                <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Most Capable)</option>
-                                <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fastest)</option>
+
                             </select>
                             <p className={styles.helperText}>
                                 {dict.settings.modelHelper}
@@ -77,7 +76,7 @@ export default function SettingsPage() {
 
                         <div className={styles.formGroup}>
                             <label className={styles.label}>{dict.settings.langLabel}</label>
-                            <select 
+                            <select
                                 className={styles.select}
                                 value={language}
                                 onChange={(e) => setLanguage(e.target.value)}
@@ -93,8 +92,8 @@ export default function SettingsPage() {
 
                         <div className={styles.formGroup}>
                             <label className={styles.label}>{dict.settings.pmoLabel}</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 className={styles.input}
                                 value={pmoName}
                                 onChange={(e) => setPmoName(e.target.value)}
@@ -102,6 +101,31 @@ export default function SettingsPage() {
                             />
                             <p className={styles.helperText}>
                                 {dict.settings.pmoHelper}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* App Preferences */}
+                    <div className={styles.card}>
+                        <div className={styles.cardHeader}>
+                            <div className={styles.iconWrapper}>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                            </div>
+                            <h2 className={styles.cardTitle}>{dict.settings.uiSection || 'Application Preferences'}</h2>
+                        </div>
+
+                        <div className={styles.formGroup}>
+                            <label className={styles.label}>{dict.settings.uiLangLabel || 'System Language'}</label>
+                            <select
+                                className={styles.select}
+                                value={languageContext.language}
+                                onChange={(e) => languageContext.setLanguage(e.target.value as 'en' | 'th')}
+                            >
+                                <option value="th">ไทย (Thai)</option>
+                                <option value="en">English</option>
+                            </select>
+                            <p className={styles.helperText}>
+                                {dict.settings.uiLangHelper || 'Choose the display language for the interface.'}
                             </p>
                         </div>
                     </div>
