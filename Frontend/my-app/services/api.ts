@@ -11,7 +11,7 @@
 
 import Cookies from 'js-cookie';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ||'http://localhost:3001';
 
 function getAuthHeader(): Record<string, string> {
     const token = Cookies.get('auth_token');
