@@ -25,6 +25,8 @@ const MeetingRecord = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [showSaveModal, setShowSaveModal] = useState(false);
+    const [showStopConfirm, setShowStopConfirm] = useState(false);
+    const [showStartConfirm, setShowStartConfirm] = useState(false);
     const [recordingName, setRecordingName] = useState(`Meeting_${new Date().toISOString().slice(0, 10)}_${new Date().getHours()}${new Date().getMinutes()}`);
     const [systemAudioMode, setSystemAudioMode] = useState(false);
 
@@ -62,33 +64,38 @@ const MeetingRecord = () => {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [recorder.isRecording]);
 
-    // Side-effect: Open save modal when recording completes & auto-download
+    // Side-effect: Open save modal when recording completes
     useEffect(() => {
         if (recorder.recordedBlob) {
             setShowSaveModal(true);
-
-            // Auto-download after 3 seconds
-            const timeoutId = setTimeout(() => {
-                if (!recorder.recordedBlob) return;
-                const url = URL.createObjectURL(recorder.recordedBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${recordingName}.mp3`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 3000);
-
-            return () => clearTimeout(timeoutId);
         }
     }, [recorder.recordedBlob, recordingName]);
 
     // ── Handlers ─────────────────────────────────────────────────────────────
 
-    const handleRecordToggle = () => recorder.startRecording(systemAudioMode);
+    const handleRecordToggle = () => {
+        setShowStartConfirm(true);
+    };
+
+    const confirmStartRecording = () => {
+        setShowStartConfirm(false);
+        recorder.startRecording(systemAudioMode);
+    };
     const handlePauseResume = () => recorder.pauseResume();
-    const handleStopRecording = () => recorder.stopRecording();
+    
+    // Trigger confirmation instead of immediate stop
+    const handleStopRecording = () => {
+        if (recorder.isRecording) {
+            setShowStopConfirm(true);
+        } else {
+            recorder.stopRecording();
+        }
+    };
+
+    const confirmStopRecording = () => {
+        setShowStopConfirm(false);
+        recorder.stopRecording();
+    };
 
     const handleCloseSaveModal = () => {
         setShowSaveModal(false);
@@ -766,6 +773,63 @@ const MeetingRecord = () => {
 
                                 <button className={styles.btnPrimary} onClick={handleProcessRecordedAudio} disabled={isProcessing}>
                                     {isProcessing ? dict.common.loading || 'Loading...' : dict.record.processGen || 'Generate MOM'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ==== START CONFIRMATION MODAL ==== */}
+            {showStartConfirm && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.saveModal} style={{ maxWidth: '400px' }}>
+                        <div className={styles.saveModalHeader}>
+                            <h2 className={styles.saveModalTitle}>{dict.record.confirmStartTitle || 'Ready to Record?'}</h2>
+                            <button onClick={() => setShowStartConfirm(false)} className={styles.closeModalBtn}>×</button>
+                        </div>
+                        <div className={styles.saveModalContent}>
+                            <p style={{ marginBottom: '24px', color: '#64748b', lineHeight: 1.6 }}>
+                                {dict.record.confirmStartDesc || 'Please ensure your microphone is properly connected and you are in a quiet environment.'}
+                            </p>
+                            <div className={styles.saveActions}>
+                                <button className={styles.btnSecondary} onClick={() => setShowStartConfirm(false)}>
+                                    {dict.common.cancel || 'Cancel'}
+                                </button>
+                                <button 
+                                    className={styles.btnPrimary} 
+                                    onClick={confirmStartRecording}
+                                >
+                                    {dict.record.start || 'Start Recording'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ==== STOP CONFIRMATION MODAL ==== */}
+            {showStopConfirm && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.saveModal} style={{ maxWidth: '400px' }}>
+                        <div className={styles.saveModalHeader}>
+                            <h2 className={styles.saveModalTitle}>{dict.record.confirmStopTitle || 'Stop Recording?'}</h2>
+                            <button onClick={() => setShowStopConfirm(false)} className={styles.closeModalBtn}>×</button>
+                        </div>
+                        <div className={styles.saveModalContent}>
+                            <p style={{ marginBottom: '24px', color: '#64748b', lineHeight: 1.6 }}>
+                                {dict.record.confirmStopDesc || 'Are you sure you want to end this recording session? This will finalize the audio file.'}
+                            </p>
+                            <div className={styles.saveActions}>
+                                <button className={styles.btnSecondary} onClick={() => setShowStopConfirm(false)}>
+                                    {dict.common.cancel || 'Cancel'}
+                                </button>
+                                <button 
+                                    className={styles.btnPrimary} 
+                                    style={{ backgroundColor: '#ef4444' }} 
+                                    onClick={confirmStopRecording}
+                                >
+                                    {dict.record.stop || 'Stop Recording'}
                                 </button>
                             </div>
                         </div>

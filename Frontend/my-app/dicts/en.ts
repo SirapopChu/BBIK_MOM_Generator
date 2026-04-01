@@ -66,7 +66,11 @@ export const en = {
         saveMp3: "Save MP3",
         pause: "Pause",
         resume: "Resume",
-        downloadMp3: "Download MP3"
+        downloadMp3: "Download MP3",
+        confirmStopTitle: "Stop Recording?",
+        confirmStopDesc: "Are you sure you want to end this recording session? This will finalize the audio file and prepare it for processing.",
+        confirmStartTitle: "Ready to Record?",
+        confirmStartDesc: "Please ensure your microphone is properly connected and you are in a quiet environment for the best results."
     },
     landing: {
         welcomePrefix: "Welcome back",
