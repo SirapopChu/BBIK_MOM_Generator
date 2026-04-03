@@ -1,11 +1,13 @@
 import React from 'react';
 import styles from './Header.module.css';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface HeaderProps {
     onMenuClick: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+    const { user } = useAuth();
     return (
         <header className={styles.header}>
             <div className={styles.leftSection}>
@@ -30,8 +32,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
             <div className={styles.userInfo}>
                 <div className={styles.userDetails}>
-                    <span className={styles.userName}>Tipakorn S.</span>
-                    <span className={styles.userRole}>Senior Project Management Consultant</span>
+                    <span className={styles.userName}>{user?.email}</span>
+                    <span className={styles.userRole}>{user?.name}</span>
                 </div>
                 <div className={styles.avatar}>T</div>
             </div>
