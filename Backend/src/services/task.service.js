@@ -27,14 +27,23 @@ class TaskRepository {
         return rows[0] ? this._mapTask(rows[0]) : undefined;
     }
 
-    async getLogs(taskId) {
-        const { rows } = await query('SELECT time, msg FROM task_logs WHERE task_id = $1 ORDER BY id ASC', [taskId]);
+    async getLogs(taskId, userId) {
+        const { rows } = await query(
+            `SELECT tl.time, tl.msg
+             FROM task_logs tl
+             JOIN tasks t ON t.id = tl.task_id
+             WHERE tl.task_id = $1 AND t.user_id = $2
+             ORDER BY tl.id ASC`,
+            [taskId, userId]
+        );
         return rows;
     }
 
-    async getResult(taskId) {
+    async getResult(taskId, userId) {
         const { rows } = await query('SELECT data FROM task_results WHERE task_id = $1', [taskId]);
-        return rows[0] ? rows[0].data : undefined;
+        if (!rows[0]) return undefined;
+        const { rows: taskRows } = await query('SELECT id FROM tasks WHERE id = $1 AND user_id = $2', [taskId, userId]);
+        return taskRows[0] ? rows[0].data : undefined;
     }
 
     // ── Mutations ─────────────────────────────────────────────
@@ -88,14 +97,18 @@ class TaskRepository {
         );
     }
 
-    async cancel(taskId) {
-        await this.update(taskId, { status: 'cancelled', currentStep: 'cancelled' });
+    async cancel(taskId, userId) {
+        const { rowCount } = await query(
+            'UPDATE tasks SET status = $1, current_step = $2 WHERE id = $3 AND user_id = $4',
+            ['cancelled', 'cancelled', taskId, userId]
+        );
+        if (!rowCount) return false;
         await this.addLog(taskId, 'Task was cancelled by the user.');
+        return true;
     }
 
-    async deleteTask(taskId) {
-        // delete is already checked in routes by getTaskById(taskId, userId)
-        const { rowCount } = await query('DELETE FROM tasks WHERE id = $1', [taskId]);
+    async deleteTask(taskId, userId) {
+        const { rowCount } = await query('DELETE FROM tasks WHERE id = $1 AND user_id = $2', [taskId, userId]);
         return rowCount > 0;
     }
 
@@ -125,11 +138,11 @@ const repository = new TaskRepository();
 
 export const createTask    = (title, userId, type)       => repository.create(title, userId, type);
 export const updateTask    = (taskId, updates, result)   => repository.update(taskId, updates, result);
-export const cancelTask    = (taskId)                    => repository.cancel(taskId);
-export const deleteTask    = (taskId)                    => repository.deleteTask(taskId);
+export const cancelTask    = (taskId, userId)            => repository.cancel(taskId, userId);
+export const deleteTask    = (taskId, userId)            => repository.deleteTask(taskId, userId);
 export const clearHistory  = (userId)                    => repository.clearHistory(userId);
 export const addLog        = (taskId, msg)               => repository.addLog(taskId, msg);
 export const getTasks      = (userId)                    => repository.getAll(userId);
-export const getTaskLogs   = (taskId)                    => repository.getLogs(taskId);
 export const getTaskById   = (taskId, userId)            => repository.getById(taskId, userId);
-export const getTaskResult = (taskId)                    => repository.getResult(taskId);
+export const getTaskLogs   = (taskId, userId)            => repository.getLogs(taskId, userId);
+export const getTaskResult = (taskId, userId)            => repository.getResult(taskId, userId);

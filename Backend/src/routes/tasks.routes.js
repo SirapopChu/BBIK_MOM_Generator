@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
 // GET /api/tasks/:id/logs - Get specific logs for a task
 router.get('/:id/logs', async (req, res) => {
     const taskId = req.params.id;
-    const logs   = await taskService.getTaskLogs(taskId);
+    const logs   = await taskService.getTaskLogs(taskId, req.user.id);
     
     if (!logs || !logs.length) {
         return res.json({ logs: [] });
@@ -32,7 +32,7 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/download', async (req, res) => {
     const taskId = req.params.id;
     const task = await taskService.getTaskById(taskId, req.user.id);
-    const result = await taskService.getTaskResult(taskId);
+    const result = await taskService.getTaskResult(taskId, req.user.id);
     
     if (!task || !result) {
         return res.status(404).json({ error: 'Result not found or task not finished' });
@@ -48,7 +48,10 @@ router.get('/:id/download', async (req, res) => {
 
 // POST /api/tasks/:id/cancel
 router.post('/:id/cancel', async (req, res) => {
-    await taskService.cancelTask(req.params.id);
+    const cancelled = await taskService.cancelTask(req.params.id, req.user.id);
+    if (!cancelled) {
+        return res.status(404).json({ error: 'Task not found or access denied' });
+    }
     res.json({ success: true });
 });
 
@@ -56,8 +59,7 @@ router.post('/:id/cancel', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     const task = await taskService.getTaskById(req.params.id, req.user.id);
     if (!task) return res.status(404).json({ error: 'Task not found or access denied' });
-    
-    const deleted = await taskService.deleteTask(req.params.id);
+    const deleted = await taskService.deleteTask(req.params.id, req.user.id);
     res.json({ success: deleted });
 });
 

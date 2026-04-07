@@ -69,7 +69,7 @@ describe('Tasks API Routes', () => {
             expect(response.status).toBe(200);
             expect(response.body).toEqual({ success: true });
             expect(taskService.getTaskById).toHaveBeenCalledWith('task-to-delete', 'user-123');
-            expect(taskService.deleteTask).toHaveBeenCalledWith('task-to-delete');
+            expect(taskService.deleteTask).toHaveBeenCalledWith('task-to-delete', 'user-123');
         });
 
         it('should return 404 if task to delete is not found', async () => {
@@ -91,7 +91,7 @@ describe('Tasks API Routes', () => {
 
             expect(response.status).toBe(200);
             expect(response.body).toEqual({ success: true });
-            expect(taskService.cancelTask).toHaveBeenCalledWith('task-to-cancel');
+            expect(taskService.cancelTask).toHaveBeenCalledWith('task-to-cancel', 'user-123');
         });
     });
 });
