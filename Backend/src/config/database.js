@@ -7,8 +7,18 @@ const { Pool } = pkg;
  * Uses DATABASE_URL from environment. In Docker, this is provided 
  * via docker-compose. For local dev, it falls back to a default.
  */
+// DB_SSL=false → force-disable SSL (e.g. local Docker with NODE_ENV=production)
+// DB_SSL=true  → force-enable SSL
+// unset        → auto: enable only in production
+const sslEnv = process.env.DB_SSL;
+const useSSL = sslEnv === 'false' ? false
+             : sslEnv === 'true'  ? { rejectUnauthorized: false }
+             : process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false }
+             : false;
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/mom_generator',
+  ssl: useSSL,
 });
 
 /**

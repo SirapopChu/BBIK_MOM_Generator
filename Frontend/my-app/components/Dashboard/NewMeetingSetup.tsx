@@ -42,10 +42,24 @@ const NewMeetingSetup = () => {
     }, []);
 
     const handleAddParticipant = () => {
-        if (newParticipant.trim()) {
-            setParticipants([...participants, { id: Date.now(), name: newParticipant.trim() }]);
-            setNewParticipant('');
-        }
+        if (!newParticipant.trim()) return;
+
+        // Split by newlines, commas, or semicolons
+        const names = newParticipant
+            .split(/[\n,;]+/)
+            .map(n => n.trim())
+            .filter(n => n.length > 0);
+
+        if (names.length === 0) return;
+
+        const newEntries = names.map((name, i) => ({ id: Date.now() + i, name }));
+        setParticipants(prev => {
+            // Deduplicate: skip names already added
+            const existing = new Set(prev.map(p => p.name.toLowerCase()));
+            const unique = newEntries.filter(e => !existing.has(e.name.toLowerCase()));
+            return [...prev, ...unique];
+        });
+        setNewParticipant('');
     };
 
     const removeParticipant = (id: number) => {
@@ -199,13 +213,19 @@ const NewMeetingSetup = () => {
                     </div>
 
                     <div className={styles.participantInputGroup}>
-                        <input
-                            type="text"
+                        <textarea
                             placeholder={dict.setup.participantPlaceholder}
-                            className={styles.input}
+                            className={`${styles.input} ${styles.participantTextarea}`}
                             value={newParticipant}
                             onChange={(e) => setNewParticipant(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddParticipant()}
+                            onKeyDown={(e) => {
+                                // Shift+Enter = newline, plain Enter = add
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleAddParticipant();
+                                }
+                            }}
+                            rows={3}
                         />
                         <button className={styles.addBtn} onClick={handleAddParticipant}>{dict.setup.addBtn}</button>
                     </div>

@@ -70,6 +70,10 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
     
     const timerIntervalRef        = useRef<NodeJS.Timeout | null>(null);
 
+    // Refs to avoid stale-closure issues in async callbacks
+    const isRecordingRef          = useRef<boolean>(false);
+    const isPausedRef             = useRef<boolean>(false);
+
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     const cleanup = useCallback(() => {
@@ -249,6 +253,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             }
             if ((mixedStream as any)._audioCtx) (mixedStream as any)._audioCtx.close();
             
+            isRecordingRef.current = false;
+            isPausedRef.current    = false;
             setIsRecording(false);
             setIsPaused(false);
             setIsSystemAudioActive(false);
@@ -301,12 +307,17 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             systemWavesurferRef.current   = systemWavesurfer;
             systemRecordPluginRef.current = systemRecord;
 
-            await systemRecord.startRecording({ stream: displayStream });
+            // Extract only the audio track into an isolated stream for the visualizer
+            const systemAudioTrack = displayStream.getAudioTracks()[0];
+            const visualizerStream = systemAudioTrack
+                ? new MediaStream([systemAudioTrack])
+                : displayStream;
+            await systemRecord.startRecording({ stream: visualizerStream });
         }
 
         attachVolumeMonitor(
-            mixedStream,
-            () => isRecording && !isPaused,
+            micStream,
+            () => isRecordingRef.current && !isPausedRef.current,
         );
     }
 
@@ -364,6 +375,8 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             const { mixedStream, micStream, displayStream } = await getMediaStreams(withSystemAudio);
             
             setIsSystemAudioActive(withSystemAudio);
+            isRecordingRef.current = true;
+            isPausedRef.current    = false;
             setIsRecording(true);
             setIsPaused(false);
 
@@ -388,11 +401,13 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
                 mediaRecorderRef.current.resume();
                 recordPluginRef.current?.resumeRecording();
                 systemRecordPluginRef.current?.resumeRecording();
+                isPausedRef.current = false;
                 setIsPaused(false);
             } else {
                 mediaRecorderRef.current.pause();
                 recordPluginRef.current?.pauseRecording();
                 systemRecordPluginRef.current?.pauseRecording();
+                isPausedRef.current = true;
                 setIsPaused(true);
             }
         }

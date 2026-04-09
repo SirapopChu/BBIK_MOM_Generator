@@ -25,6 +25,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - TZ=Asia/Bangkok
+      - DB_SSL=false
     ports:
       - "3001:3001"
     restart: unless-stopped
@@ -69,6 +70,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - TZ=Asia/Bangkok
+      - DB_SSL=false
 
   frontend:
     build:
