@@ -15,8 +15,8 @@ const notoTh = Noto_Sans_Thai({
 });
 
 export const metadata: Metadata = {
-  title: "BBIK MOM Generator",
-  description: "BBIK MOM Generator",
+  title: "Bluenote",
+  description: "Bluenote — AI-powered Meeting Minutes Generator",
 };
 
 import { AuthProvider } from "@/contexts/AuthContext";

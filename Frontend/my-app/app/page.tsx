@@ -93,13 +93,12 @@ export default function RootPage() {
                         {/* Logo */}
                         <div className="mb-8">
                             <img 
-                                src="/bbik-logo-vertical.png" 
-                                alt="Bluebik Logo" 
+                                src="/bluenote-logo.png" 
+                                alt="Bluenote" 
                                 className="h-20 object-contain -ml-2"
                                 onError={(e) => {
-                                    // Fallback text if logo fails
                                     (e.target as HTMLImageElement).style.display = 'none';
-                                    e.currentTarget.parentElement!.innerHTML = '<span class="text-2xl font-bold tracking-tight text-[#3b7bed]">bluebik</span>';
+                                    e.currentTarget.parentElement!.innerHTML = '<span class="text-2xl font-bold tracking-tight text-[#3b7bed]">Bluenote</span>';
                                 }}
                             />
                         </div>

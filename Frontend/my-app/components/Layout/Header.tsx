@@ -1,11 +1,30 @@
+"use client";
+
 import React from 'react';
 import styles from './Header.module.css';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
     onMenuClick: () => void;
 }
 
+/** Generate up to 2 initials from a full name, e.g. "Tipakorn Suksri" → "TS" */
+const getInitials = (name: string): string => {
+    return name
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map(w => w[0]?.toUpperCase() ?? '')
+        .join('');
+};
+
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+    const { user } = useAuth();
+
+    const displayName = user?.name ?? '—';
+    const displayEmail = user?.email ?? '';
+    const initials = user?.name ? getInitials(user.name) : '?';
+
     return (
         <header className={styles.header}>
             <div className={styles.leftSection}>
@@ -25,15 +44,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                 </div>
             </div>
 
-
-
-
             <div className={styles.userInfo}>
                 <div className={styles.userDetails}>
-                    <span className={styles.userName}>Tipakorn S.</span>
-                    <span className={styles.userRole}>Senior Project Management Consultant</span>
+                    <span className={styles.userName}>{displayName}</span>
+                    <span className={styles.userRole}>{displayEmail}</span>
                 </div>
-                <div className={styles.avatar}>T</div>
+                <div className={styles.avatar}>{initials}</div>
             </div>
         </header>
     );

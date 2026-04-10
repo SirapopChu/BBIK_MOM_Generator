@@ -27,7 +27,20 @@ const MeetingRecord = () => {
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [showStopConfirm, setShowStopConfirm] = useState(false);
     const [showStartConfirm, setShowStartConfirm] = useState(false);
-    const [recordingName, setRecordingName] = useState(`Meeting_${new Date().toISOString().slice(0, 10)}_${new Date().getHours()}${new Date().getMinutes()}`);
+    const [recordingName, setRecordingName] = useState(() => {
+        try {
+            const saved = localStorage.getItem('meeting_metadata');
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.title && data.title.trim()) {
+                    // Sanitize: replace characters that are unsafe in filenames with underscores
+                    return data.title.trim().replace(/[/\\?%*:|"<>]/g, '_').replace(/\s+/g, '_');
+                }
+            }
+        } catch (_) {}
+        const now = new Date();
+        return `Meeting_${now.toISOString().slice(0, 10)}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+    });
     const [systemAudioMode, setSystemAudioMode] = useState(false);
 
     // File uploads (outside recording flow)

@@ -17,7 +17,7 @@ export const en = {
         bilingual: "Bilingual"
     },
     dashboard: {
-        welcome: "Welcome to BBIK MOM Generator",
+        welcome: "Welcome to Bluenote",
         subtitle: "Professional AI-powered meeting minutes assistant.",
         recentTasks: "Recent Tasks",
         noTasks: "No recent tasks found.",
