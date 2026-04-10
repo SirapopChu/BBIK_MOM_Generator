@@ -42,7 +42,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <div className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ''}`}>
                 <div className={styles.logoWrapper}>
                     <div className={styles.logoContainer}>
-                        <img src="/bluenote-logo.png" alt="Bluenote" style={{ height: '40px', width: 'auto' }} />
+                        <img src="/bluenote-logo.png" alt="Bluenote" style={{ height: '36px', width: 'auto' }} />
+                        <span className={styles.logoWordmark}>Bluenote</span>
                     </div>
                     <button className={styles.closeBtn} onClick={onClose}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>

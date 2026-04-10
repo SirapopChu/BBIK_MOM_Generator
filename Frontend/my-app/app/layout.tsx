@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Prompt, Noto_Sans_Thai } from "next/font/google";
+import { Prompt, Noto_Sans_Thai, Outfit } from "next/font/google";
 import "./globals.css";
 
 const prompt = Prompt({
@@ -12,6 +12,12 @@ const notoTh = Noto_Sans_Thai({
   variable: "--font-noto-th",
   subsets: ["thai"],
   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+});
+
+const outfit = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800", "900"],
 });
 
 export const metadata: Metadata = {
@@ -29,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${prompt.variable} ${notoTh.variable} ${notoTh.className} antialiased`}
+        className={`${prompt.variable} ${notoTh.variable} ${outfit.variable} ${notoTh.className} antialiased`}
       >
         <AuthProvider>
           {children}
