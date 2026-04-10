@@ -87,7 +87,12 @@ const provider = AnthropicProvider;
  * @returns {Promise<{ result: string, usage: object }>}
  */
 export async function generateMinutesText(transcript, modelOverride = null) {
-    const activeModel = modelOverride || config.anthropic.model;
+    let activeModel = modelOverride || config.anthropic.model;
+    
+    // Auto-map aliases to precise Anthropic model IDs
+    if (activeModel === 'claude-sonnet-4-5' || activeModel === 'claude-4-5-sonnet') {
+        activeModel = 'claude-sonnet-4-5-20250929';
+    }
 
     // 1. If transcript is short, process directly
     if (transcript.length <= CHUNK_SIZE) {

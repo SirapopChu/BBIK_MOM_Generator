@@ -6,7 +6,7 @@ import styles from './Settings.module.css';
 import { useI18n } from '@/contexts/LanguageContext';
 
 export default function SettingsPage() {
-    const [model, setModel] = useState('claude-3-5-sonnet-20241022');
+    const [model, setModel] = useState('claude-sonnet-4-5');
     const [language, setLanguage] = useState('bilingual');
     const [pmoName, setPmoName] = useState('PMO Analyst');
     const [saveSuccess, setSaveSuccess] = useState(false);
@@ -56,7 +56,8 @@ export default function SettingsPage() {
                                 value={model}
                                 onChange={(e) => setModel(e.target.value)}
                             >
-                                <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Balanced)</option>
+                                <option value="claude-sonnet-4-5">Claude 4.5 Sonnet (Latest)</option>
+                                <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Legacy)</option>
 
                             </select>
                             <p className={styles.helperText}>
